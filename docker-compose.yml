@@ -1,0 +1,19 @@
+# Prospector David en NAS (Docker Compose)
+# Uso: copia .env.example a .env (con tu DEEPSEEK_API_KEY) y:
+#   docker compose up -d --build
+# Abre http://IP_DEL_NAS:4877
+
+services:
+  prospector:
+    build: .
+    container_name: prospector-david
+    ports:
+      - "4877:4877"
+    volumes:
+      - ./data:/app/data          # base de prospectos (persistente)
+      - ./output:/app/output      # capturas, lote y reportes (persistente)
+      - ./.env:/app/.env:ro       # tu API key (no se hornea en la imagen)
+    environment:
+      - CHROMIUM_PATH=/usr/bin/chromium
+      - PORT=4877
+    restart: unless-stopped

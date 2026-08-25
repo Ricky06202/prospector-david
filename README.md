@@ -110,3 +110,21 @@ git push -u origin main
 > `data/prospectos.json`, `.env` y `output/` están en `.gitignore` — en el repo solo
 > va el código. Un clon nuevo debe correr `cp .env.example .env`, `bun install`,
 > `cd generator && bun install`, y `bun run seed` + `bun run scrape`.
+
+## 9. Despliegue en tu NAS (Docker)
+
+Empaquetado con Chromium incluido para las capturas y el scraper de Google Maps.
+
+```bash
+git clone git@github.com:Ricky06202/prospector-david.git
+cd prospector-david
+cp .env.example .env          # pon tu DEEPSEEK_API_KEY
+docker compose up -d --build
+# abre http://IP_DEL_NAS:4877
+```
+
+**Persistencia** (volúmenes): `./data` (prospectos), `./output` (capturas, lote, reportes)
+y `./.env` (tu key). Si `data/` está vacío, el entrypoint lo siembra con los 8 clientes
+la primera vez. El contenedor se reinicia solo (`restart: unless-stopped`).
+
+Para actualizar: `git pull && docker compose up -d --build`.

@@ -1,0 +1,9 @@
+# Archivos que NO van a la imagen Docker (peso y datos sensibles).
+node_modules
+**/node_modules
+generator/dist
+output
+data
+.env
+.git
+*.log
