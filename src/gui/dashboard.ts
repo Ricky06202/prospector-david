@@ -35,6 +35,8 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;vertical-align
 #status{border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700}
 .st-idle{background:#e2e8f0;color:#334155}.st-corriendo{background:#fef3c7;color:#b45309}
 .st-listo{background:#dcfce7;color:#15803d}.st-error{background:#fee2e2;color:#b91c1c}
+.aviso{border-radius:10px;padding:10px 14px;margin-top:10px;font-size:13px;font-weight:600;background:#dcfce7;color:#15803d}
+.av-err{background:#fee2e2;color:#b91c1c}
 .hidden{display:none}
 </style>
 </head>
@@ -54,6 +56,7 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;vertical-align
       <button class="danger" id="btn-vaciar">Vaciar lote</button>
       <span id="status" class="st-idle">idle</span>
     </div>
+    <p id="aviso" class="aviso hidden"></p>
     <p class="muted">Prepara N prospectos nuevos (nunca se repiten los enviados) y los marca "en cola". Después genera sus landings, capturas y copys.</p>
   </div>
 
@@ -87,12 +90,19 @@ function waLink(tel,msg){return 'https://wa.me/'+tel.replace(/\\D/g,'')+'?text='
 function copDe(id){const c=COPS[id];return c?c.copy_whatsapp:'';}
 
 async function loadStats(t){
-  $('stats').innerHTML='';
+  $('#stats').innerHTML='';
   ['nuevo','en_cola','enviado'].forEach(k=>{
     const d=document.createElement('div');d.className='stat';
-    d.innerHTML='<b>'+t[k]+'</b>'+k.replace('_',' ');$('stats').appendChild(d);
+    d.innerHTML='<b>'+t[k]+'</b>'+k.replace('_',' ');$('#stats').appendChild(d);
   });
-  const d=document.createElement('div');d.className='stat';d.innerHTML='<b>'+t.total+'</b>total';$('stats').appendChild(d);
+  const d=document.createElement('div');d.className='stat';d.innerHTML='<b>'+t.total+'</b>total';$('#stats').appendChild(d);
+}
+
+function aviso(msg,tipo){
+  const el=$('#aviso');
+  el.textContent=msg;
+  el.className='aviso av-'+(tipo||'ok');
+  el.classList.remove('hidden');
 }
 
 async function loadLote(){
@@ -108,10 +118,10 @@ async function loadLote(){
       (copDe(p.id)?'<div class="copy">'+copDe(p.id)+'</div>':'')+
       '<div class="fotos" id="f-'+p.id+'"><span class="muted">cargando fotos…</span></div>'+
       '<div class="row" style="margin-top:8px">'+
-      '<button class="wa" onclick="enviar(\''+p.id+'\')">Marcar enviado</button>'+
+      '<button class="wa" onclick="enviar(\\''+p.id+'\\')">Marcar enviado</button>'+
       '<a class="button wa" target="_blank" rel="noopener" href="'+wa+'" style="text-decoration:none;color:#fff">Abrir WhatsApp</a>'+
-      '<button onclick="estado(\''+p.id+'\',\'no_interesado\')">No interesado</button>'+
-      '<button onclick="estado(\''+p.id+'\',\'reagendar\')">Reagendar</button>'+
+      '<button onclick="estado(\\''+p.id+'\\',\\'no_interesado\\')">No interesado</button>'+
+      '<button onclick="estado(\\''+p.id+'\\',\\'reagendar\\')">Reagendar</button>'+
       '</div></div>';
   }).join('');
   r.prospectos.forEach(p=>cargarFotos(p.id));
@@ -129,8 +139,8 @@ async function cargarTabla(){
   $('#tabla').innerHTML='<table><tr><th>Negocio</th><th>Tipo</th><th>Estado</th><th>Teléfono</th><th>Acciones</th></tr>'+
     r.prospectos.map(p=>'<tr><td><b>'+p.nombre_negocio+'</b></td><td>'+p.tipo+'</td><td>'+badg(p.estado)+
     '<td>'+p.whatsapp+'</td><td>'+
-    (p.estado!=='enviado'?'<button onclick="estado(\''+p.id+'\',\'enviado\')">Enviado</button> ':'')+
-    '<button onclick="estado(\''+p.id+'\',\'no_interesado\')">No</button></td></tr>').join('')+'</table>';
+    (p.estado!=='enviado'?'<button onclick="estado(\\''+p.id+'\\',\\'enviado\\')">Enviado</button> ':'')+
+    '<button onclick="estado(\\''+p.id+'\\',\\'no_interesado\\')">No</button></td></tr>').join('')+'</table>';
 }
 
 async function refrescar(){
@@ -145,9 +155,25 @@ setInterval(async()=>{const s=await api('/api/estado');const st=$('#status');st.
 
 async function estado(id,e){await api('/api/prospectos/'+id+'/estado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado:e})});refrescar();}
 async function enviar(id){await estado(id,'enviado');}
-$('#btn-lote').onclick=async()=>{const r=await api('/api/lote/preparar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n:+$('#lote-n').value})});alert(r.ok?('Lote preparado: '+r.n+' prospectos'):'error');refrescar();};
-$('#btn-generar').onclick=async()=>{$('#status').textContent='corriendo…';await api('/api/generar',{method:'POST'});refrescar();};
-$('#btn-vaciar').onclick=async()=>{await api('/api/lote/vaciar',{method:'POST'});refrescar();};
+$('#btn-lote').onclick=async()=>{
+  aviso('Preparando lote…');
+  const r=await api('/api/lote/preparar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n:+$('#lote-n').value})});
+  if(r.ok){aviso('✓ Lote preparado: '+r.n+' prospectos en cola. Ahora pulsa "Generar capturas y reporte".');}
+  else{aviso('Error al preparar el lote','err');}
+  refrescar();
+};
+$('#btn-generar').onclick=async()=>{
+  aviso('⏳ Generando landings, capturas y copys… (tarda unos minutos)');
+  $('#status').textContent='corriendo…';
+  await api('/api/generar',{method:'POST'});
+  aviso('✓ Listo. Revisa cada tarjeta, envía por WhatsApp y marca "Enviado".');
+  refrescar();
+};
+$('#btn-vaciar').onclick=async()=>{
+  await api('/api/lote/vaciar',{method:'POST'});
+  aviso('Lote vaciado (los prospectos vuelven a "nuevo").');
+  refrescar();
+};
 $('#btn-filtrar').onclick=cargarTabla;
 $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')cargarTabla();});
 refrescar();

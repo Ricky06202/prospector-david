@@ -12,8 +12,9 @@ import type { Prospecto } from "../types.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "..", "data");
+const OUTPUT_DIR = join(__dirname, "..", "..", "output");
 
-const prospectos: Prospecto[] = [
+export const SEEDS: Prospecto[] = [
   {
     id: "vet-24h",
     nombre_negocio: "Clínica Veterinaria 24 Horas",
@@ -89,17 +90,30 @@ const prospectos: Prospecto[] = [
 ];
 
 const ahora = new Date().toISOString();
-const conFechas = prospectos.map((p) => ({ ...p, tiene_web: true, creado_en: ahora }));
+const conFechas = SEEDS.map((p) => ({ ...p, tiene_web: true, creado_en: ahora }));
 
-// FUSIÓN (no sobrescribe): agrega/actualiza los 8 seeds sin borrar los scrapeados.
-const previos: Prospecto[] = await readFile(join(DATA_DIR, "prospectos.json"), "utf-8")
-  .then((t) => JSON.parse(t))
-  .catch(() => []);
-const mapa = new Map(previos.map((p) => [p.id, p]));
-for (const p of conFechas) mapa.set(p.id, p);
-const final = [...mapa.values()];
+// RESET DE FÁBRICA: RESET=true → sobreescribe con solo los 8 seeds y limpia output.
+const RESET = process.env.RESET === "true";
 
-await mkdir(DATA_DIR, { recursive: true });
-await writeFile(join(DATA_DIR, "prospectos.json"), JSON.stringify(final, null, 2), "utf-8");
+if (RESET) {
+  await mkdir(DATA_DIR, { recursive: true });
+  await writeFile(join(DATA_DIR, "prospectos.json"), JSON.stringify(conFechas, null, 2), "utf-8");
+  const { rm } = await import("node:fs/promises");
+  for (const f of ["lote_actual.json", "lista_envio.json", "reporte_envio.html", "pipeline_status.json"]) {
+    await rm(join(OUTPUT_DIR, f), { force: true });
+  }
+  await rm(join(OUTPUT_DIR, "screenshots"), { recursive: true, force: true });
+  console.log(`[reset] Base restaurada de fábrica: ${conFechas.length} seeds · output limpio`);
+} else {
+  // FUSIÓN (no sobrescribe): agrega/actualiza los 8 seeds sin borrar los scrapeados.
+  const previos: Prospecto[] = await readFile(join(DATA_DIR, "prospectos.json"), "utf-8")
+    .then((t) => JSON.parse(t))
+    .catch(() => []);
+  const mapa = new Map(previos.map((p) => [p.id, p]));
+  for (const p of conFechas) mapa.set(p.id, p);
+  const final = [...mapa.values()];
 
-console.log(`[seed] ${prospectos.length} seeds fusionados · total en prospectos.json: ${final.length}`);
+  await mkdir(DATA_DIR, { recursive: true });
+  await writeFile(join(DATA_DIR, "prospectos.json"), JSON.stringify(final, null, 2), "utf-8");
+  console.log(`[seed] ${conFechas.length} seeds fusionados · total en prospectos.json: ${final.length}`);
+}

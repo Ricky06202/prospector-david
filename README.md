@@ -46,7 +46,9 @@ En la GUI puedes:
 ### Línea de comandos
 ```bash
 bun run seed          # (opcional) fusiona los 8 clientes reales (no borra nada)
-bun run scrape        # MÓDULO 1: extrae del directorio, filtra teléfonos (+507), dedup, sin-web
+bun run scrape        # MÓDULO 1a: directorio CAMCHI (API WordPress) — teléfonos +507, dedup, sin-web
+bun run gmaps         # MÓDULO 1b: Google Maps de David — teléfonos + web + COORDENADAS reales
+                      #   (config: GMAP_QUERIES="restaurantes en David, salones en David" · GMAP_LIMITE=15)
 bun run build:landings # MÓDULO 2: genera las landings del lote activo
 bun run capturar      # MÓDULO 3: capturas móvil + PC por sección (carpeta por prospecto)
 bun run envio         # MÓDULO 4: copys (DeepSeek) + lista + reporte HTML

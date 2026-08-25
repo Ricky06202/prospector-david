@@ -6,7 +6,9 @@
   "description": "Pipeline end-to-end de prospección local para negocios de David, Chiriquí. Scraper -> Landings Astro -> Capturas -> Copys WhatsApp.",
   "scripts": {
     "seed": "bun run src/scraper/seed.ts",
+    "reset": "RESET=true bun run src/scraper/seed.ts",
     "scrape": "bun run src/scraper/scrape.ts",
+    "gmaps": "bun run src/scraper/googlemaps.ts",
     "build:landings": "LOTE_IDS=$(cat output/lote_actual.json 2>/dev/null) bun run --cwd generator build",
     "capturar": "bun run src/screenshots/capturar.ts",
     "envio": "bun run src/envio/generar.ts",
