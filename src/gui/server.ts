@@ -95,17 +95,19 @@ app.post("/api/generar", async (c) => {
   return c.json({ ok: true });
 });
 
-// Genera (si falta) la landing de UN prospecto y la deja lista en /prototipo/<id>/
+// Regenera (si falta) landing + capturas de UN prospecto y lo deja en /prototipo/<id>/
 app.post("/api/prospectos/:id/prototipo", async (c) => {
   const id = c.req.param("id");
   const loteActual = await leerLote();
   await guardarLote([id]);
   try {
-    await new Promise<void>((resolve, reject) => {
-      const ch = spawn("bun", ["run", "build:landings"], { cwd: ROOT, stdio: "inherit" });
-      ch.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`build falló (${code})`))));
-      ch.on("error", reject);
-    });
+    for (const paso of ["build:landings", "capturar"]) {
+      await new Promise<void>((resolve, reject) => {
+        const ch = spawn("bun", ["run", paso], { cwd: ROOT, stdio: "inherit" });
+        ch.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`${paso} falló (${code})`))));
+        ch.on("error", reject);
+      });
+    }
   } finally {
     await guardarLote(loteActual);
   }

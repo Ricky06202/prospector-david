@@ -212,9 +212,9 @@ document.addEventListener('click', async (ev)=>{
     const check=await fetch('/prototipo/'+id+'/');
     if(check.ok){ window.open('/prototipo/'+id+'/','_blank'); }
     else{
-      aviso('⏳ Generando prototipo de '+id+'…');
+      aviso('⏳ Regenerando prototipo y fotos de '+id+'… (~15s)');
       await api('/api/prospectos/'+id+'/prototipo',{method:'POST'});
-      aviso('✓ Prototipo listo');
+      aviso('✓ Prototipo y fotos listos');
       window.open('/prototipo/'+id+'/','_blank');
     }
   }
