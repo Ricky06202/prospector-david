@@ -25,22 +25,27 @@ import { DASHBOARD } from "./dashboard.ts";
 
 const app = new Hono();
 
-async function ejecutarPipeline(): Promise<void> {
+async function ejecutarScript(script: string): Promise<void> {
   await escribirStatus({ estado: "corriendo", inicio: new Date().toISOString() });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn("bun", ["run", script], { cwd: ROOT, stdio: "inherit" });
+      child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`script ${script} falló (${code})`))));
+      child.on("error", reject);
+    });
+    await escribirStatus({ estado: "listo", fin: new Date().toISOString() });
+  } catch (e) {
+    await escribirStatus({ estado: "error", error: (e as Error).message, fin: new Date().toISOString() });
+  }
+}
+
+async function ejecutarPipeline(): Promise<void> {
   const pasos = ["build:landings", "capturar", "envio"];
   for (const paso of pasos) {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const child = spawn("bun", ["run", paso], { cwd: ROOT, stdio: "inherit" });
-        child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`paso ${paso} falló (${code})`))));
-        child.on("error", reject);
-      });
-    } catch (e) {
-      await escribirStatus({ estado: "error", error: (e as Error).message, fin: new Date().toISOString() });
-      return;
-    }
+    await ejecutarScript(paso);
+    const s = await leerStatus();
+    if (s.estado === "error") return;
   }
-  await escribirStatus({ estado: "listo", fin: new Date().toISOString() });
 }
 
 // ---------- API ----------
@@ -65,8 +70,13 @@ app.get("/api/prospectos", async (c) => {
 app.post("/api/lote/preparar", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const n = Math.max(1, Number(body.n) || 10);
-  const elegidos = await prepararLote(n);
-  return c.json({ ok: true, lote: elegidos.map((p) => p.id), n: elegidos.length });
+  const r = await prepararLote(n);
+  const msj = r.elegidos.length
+    ? `Lote: ${r.elegidos.length} en cola`
+    : r.enCola.length
+      ? `Ya hay ${r.enCola.length} en cola (reutilizado)`
+      : `No quedan prospectos nuevos (${r.nuevos ? "todos enviados" : "base vacía"}). Corre scrape/gmaps para ampliar.`;
+  return c.json({ ok: true, mensaje: msj, lote: r.elegidos.map((p) => p.id), n: r.elegidos.length });
 });
 
 app.post("/api/lote/vaciar", async (c) => {
@@ -79,6 +89,17 @@ app.post("/api/lote/vaciar", async (c) => {
 
 app.post("/api/generar", async (c) => {
   await ejecutarPipeline();
+  return c.json({ ok: true });
+});
+
+// Scrapear desde la GUI (ejecuta el script y reporta progreso en /api/estado)
+app.post("/api/scrape", async (c) => {
+  await ejecutarScript("scrape");
+  return c.json({ ok: true });
+});
+
+app.post("/api/gmaps", async (c) => {
+  await ejecutarScript("gmaps");
   return c.json({ ok: true });
 });
 

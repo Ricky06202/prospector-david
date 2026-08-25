@@ -56,6 +56,11 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;vertical-align
       <button class="danger" id="btn-vaciar">Vaciar lote</button>
       <span id="status" class="st-idle">idle</span>
     </div>
+    <div class="row" style="margin-top:10px">
+      <span class="muted">Ampliar base:</span>
+      <button id="btn-scrape">Scrapear CAMCHI</button>
+      <button id="btn-gmaps">Scrapear Google Maps</button>
+    </div>
     <p id="aviso" class="aviso hidden"></p>
     <p class="muted">Prepara N prospectos nuevos (nunca se repiten los enviados) y los marca "en cola". Después genera sus landings, capturas y copys.</p>
   </div>
@@ -158,8 +163,7 @@ async function enviar(id){await estado(id,'enviado');}
 $('#btn-lote').onclick=async()=>{
   aviso('Preparando lote…');
   const r=await api('/api/lote/preparar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n:+$('#lote-n').value})});
-  if(r.ok){aviso('✓ Lote preparado: '+r.n+' prospectos en cola. Ahora pulsa "Generar capturas y reporte".');}
-  else{aviso('Error al preparar el lote','err');}
+  aviso('✓ '+r.mensaje+(r.n?' · Pulsa "Generar capturas y reporte".':''));
   refrescar();
 };
 $('#btn-generar').onclick=async()=>{
@@ -172,6 +176,20 @@ $('#btn-generar').onclick=async()=>{
 $('#btn-vaciar').onclick=async()=>{
   await api('/api/lote/vaciar',{method:'POST'});
   aviso('Lote vaciado (los prospectos vuelven a "nuevo").');
+  refrescar();
+};
+$('#btn-scrape').onclick=async()=>{
+  aviso('⏳ Scrapeando CAMCHI… (2-3 min, busca teléfonos +507)');
+  $('#status').textContent='corriendo…';
+  await api('/api/scrape',{method:'POST'});
+  aviso('✓ Scrapeo CAMCHI terminado. Recarga la vista con el filtro "Nuevos".');
+  refrescar();
+};
+$('#btn-gmaps').onclick=async()=>{
+  aviso('⏳ Scrapeando Google Maps… (lento, con pausas anti-captcha)');
+  $('#status').textContent='corriendo…';
+  await api('/api/gmaps',{method:'POST'});
+  aviso('✓ Scrapeo Google Maps terminado. Revisa los nuevos.');
   refrescar();
 };
 $('#btn-filtrar').onclick=cargarTabla;

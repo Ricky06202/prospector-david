@@ -2,11 +2,12 @@
  * IO central de prospectos + gestión de estado y lote diario.
  * Estado: nuevo | en_cola | enviado | no_interesado | reagendar
  */
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Prospecto } from "../types.ts";
 import { normalizarNombre } from "./dedupe.ts";
+import { SEEDS } from "./seeds.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const ROOT = join(__dirname, "..", "..");
@@ -60,17 +61,28 @@ export async function guardarLote(ids: string[]): Promise<void> {
   await writeFile(LOTE_FILE, JSON.stringify(ids, null, 2), "utf-8");
 }
 
-/** Prepara un lote de N prospectos "nuevo" (no repetidos nunca). */
-export async function prepararLote(n: number): Promise<Prospecto[]> {
+/** Prepara (o reutiliza) un lote de N prospectos. Nunca repite los enviados. */
+export async function prepararLote(n: number): Promise<{ elegidos: Prospecto[]; enCola: Prospecto[]; nuevos: number }> {
   const lista = await cargarProspectos();
+  const enCola = lista.filter((p) => p.estado === "en_cola");
   const pendientes = lista.filter((p) => !p.estado || p.estado === "nuevo");
-  const elegidos = pendientes.slice(0, n);
-  const ids = elegidos.map((p) => p.id);
+
+  // Si ya hay un lote activo, se mantiene (idempotente). Si no, se arma uno nuevo.
+  const ids = enCola.map((p) => p.id);
+  if (!ids.length) {
+    for (const p of pendientes.slice(0, n)) ids.push(p.id);
+  }
   await guardarLote(ids);
-  await guardarProspectos(
-    lista.map((p) => (ids.includes(p.id) ? { ...p, estado: "en_cola" } : p))
-  );
-  return elegidos;
+  if (ids.length) {
+    await guardarProspectos(
+      lista.map((p) => (ids.includes(p.id) ? { ...p, estado: "en_cola" } : p))
+    );
+  }
+  return {
+    elegidos: lista.filter((p) => ids.includes(p.id)),
+    enCola,
+    nuevos: pendientes.length,
+  };
 }
 
 /** Prospectos activos para procesar: el lote actual si existe, si no NICHO, si no todos. */
