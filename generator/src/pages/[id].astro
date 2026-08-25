@@ -1,0 +1,278 @@
+---
+import "../styles/global.css";
+import { prospectos, whatsappLink, mensajeContacto } from "../lib/prospectos";
+import { accentDe } from "../lib/accents";
+import { infoTipo } from "../lib/tipo";
+
+export function getStaticPaths() {
+  return prospectos.map((p) => ({ params: { id: p.id }, props: { prospecto: p } }));
+}
+
+const { prospecto } = Astro.props;
+const accent = accentDe(prospecto.color_accent);
+const wa = whatsappLink(prospecto.whatsapp, mensajeContacto(prospecto.nombre_negocio));
+const { icono, tagline, giro } = infoTipo(prospecto.tipo);
+
+const ICONOS: Record<string, string> = {
+  plato: "M3 11h18M4 11c0-3 2-5 4-5h8c2 0 4 2 4 5M4 11c0 6 4 8 8 8s8-2 8-8",
+  llave: "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z",
+  frio: "M12 2v20M12 12H2M12 12h10M5 5l14 14M19 5 5 19",
+  hoja: "M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10ZM2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12",
+  salud: "M22 12h-4l-3 9L9 3l-3 9H2",
+  obras: "M2 12h4l3-9 4 18 3-9h6",
+  tech: "M2 12h4l3-9 4 18 3-9h6",
+  camion: "M1 3h15v13H1zM16 8h4l3 3v5h-7V8Z",
+  abogado: "M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4",
+  belleza: "M12 3l1.7 5.8L19.5 8l-4.8 3.6L16.4 17 12 13.4 7.6 17l1.7-5.4L4.5 8l5.8.8L12 3Z",
+  viaje: "M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z",
+  tienda: "M3 9l1.5-5h15L21 9M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M5 9v12h14V9",
+  evento: "M8 2v4M16 2v4M3 8h18M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8",
+  estrella: "M12 2l3.09 3.09L18.5 4l.41 3.09L22 9l-1.59 3.09L22 15l-3.09 1.41L18.5 19.5l-3.41-.91L12 22l-3.09-3.09-3.41.91L4.91 16.41 1.5 15l1.59-3.09L1.5 9l3.09-1.41L4.91 4.5l3.41.91L12 2Z",
+};
+const d = ICONOS[icono] || ICONOS.estrella;
+
+const servicios = [
+  {
+    titulo: "Atención especializada",
+    desc: `Servicios de ${prospecto.tipo} pensados para la comunidad de David, con calidad y trato cercano.`,
+  },
+  {
+    titulo: "Respuesta rápida",
+    desc: "Consulta por WhatsApp y recibe atención al momento, sin filas ni esperas innecesarias.",
+  },
+  {
+    titulo: "Compromiso local",
+    desc: "Un negocio establecido en Chiriquí que conoce a sus clientes y trabaja por su comunidad.",
+  },
+];
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={`${prospecto.nombre_negocio} en ${prospecto.direccion}. Contáctanos por WhatsApp.`} />
+    <title>{prospecto.nombre_negocio} | {prospecto.tipo} en David, Chiriquí</title>
+  </head>
+  <body
+    class="min-h-screen"
+    style={`--accent:${accent.base};--accent-dark:${accent.dark};--accent-soft:${accent.soft}`}
+  >
+    <header class="fixed inset-x-0 top-0 z-40 bg-white/95 backdrop-blur shadow-[0_1px_0_rgb(0_0_0_/_0.06)]">
+      <div class="container-x flex h-16 items-center justify-between gap-3">
+        <a href="#inicio" class="flex items-center gap-2.5">
+          <span class="grid size-10 place-items-center rounded-xl font-bold text-white" style="background:var(--accent)">{prospecto.nombre_negocio.charAt(0)}</span>
+          <span class="leading-tight">
+            <span class="block text-[15px] font-bold tracking-tight text-slate-900">{prospecto.nombre_negocio}</span>
+            <span class="block text-[10px] font-bold uppercase tracking-[0.18em]" style="color:var(--accent)">{prospecto.tipo}</span>
+          </span>
+        </a>
+        <a href={wa} target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-transform active:scale-95" style="background:var(--accent)">
+          WhatsApp
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <section id="inicio" class="relative overflow-hidden bg-slate-950 pb-20 pt-28 sm:pt-32">
+        <div class="pointer-events-none absolute inset-0" aria-hidden="true">
+          <div class="absolute -right-40 -top-40 size-[32rem] rounded-full opacity-30" style="background:radial-gradient(circle at center, var(--accent) 0%, transparent 60%)"></div>
+        </div>
+        <div class="container-x relative grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <p class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-white" style="background:color-mix(in srgb, var(--accent) 25%, transparent)">
+              En David, Chiriquí
+            </p>
+            <h1 class="mt-6 font-sans text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-6xl">
+              {prospecto.nombre_negocio}
+            </h1>
+            <p class="mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
+              {tagline}
+            </p>
+            <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <a href={wa} target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-3 rounded-xl px-7 py-4 text-base font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5 active:scale-95 sm:text-lg" style="background:var(--accent)">
+                Escríbenos por WhatsApp
+              </a>
+              <a href="#ubicacion" class="inline-flex items-center justify-center gap-3 rounded-xl border border-white/20 bg-white/5 px-6 py-4 text-base font-bold text-white backdrop-blur transition-colors hover:bg-white/10">
+                Cómo llegar
+              </a>
+            </div>
+            <p class="mt-4 text-sm font-semibold text-slate-400">{prospecto.direccion}</p>
+          </div>
+          <div class="relative mx-auto w-full max-w-sm">
+            <div class="grid aspect-square place-items-center rounded-[2rem] border border-white/10" style="background:radial-gradient(circle at center, color-mix(in srgb, var(--accent) 35%, transparent) 0%, transparent 65%)">
+              <span class="grid size-36 place-items-center rounded-full text-white shadow-2xl" style="background:var(--accent)">
+                <svg viewBox="0 0 24 24" class="size-20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d={d} /></svg>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="servicios" class="py-20 sm:py-24">
+        <div class="container-x">
+          <div class="max-w-2xl">
+            <p class="text-xs font-bold uppercase tracking-[0.2em]" style="color:var(--accent)">Lo que ofrecemos</p>
+            <h2 class="mt-3 font-sans text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Servicios pensados para ti</h2>
+          </div>
+          <div class="mt-12 grid gap-5 md:grid-cols-3">
+            {servicios.map((s) => (
+              <article class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm transition-transform hover:-translate-y-1">
+                <span class="grid size-12 place-items-center rounded-2xl text-white" style="background:var(--accent)">
+                  <svg viewBox="0 0 24 24" fill="none" class="size-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                </span>
+                <h3 class="mt-5 text-xl font-bold text-slate-900">{s.titulo}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-slate-600">{s.desc}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {giro === "gastronomia" && (
+        <section id="especialidades" class="bg-slate-50 py-20 sm:py-24">
+          <div class="container-x">
+            <p class="text-xs font-bold uppercase tracking-[0.2em]" style="color:var(--accent)">Especialidades</p>
+            <h2 class="mt-3 font-sans text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Lo que nos hace únicos</h2>
+            <div class="mt-10 grid gap-5 md:grid-cols-3">
+              {[
+                { n: "Especialidad de la casa", d: "Un platillo insignia preparado con ingredientes frescos.", p: "B/. 8.50" },
+                { n: "Menú del día", d: "Opciones variadas que cambian para sorprenderte.", p: "B/. 6.00" },
+                { n: "Para compartir", d: "Porciones pensadas para disfrutar en familia.", p: "B/. 9.00" },
+              ].map((s) => (
+                <article class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+                  <div class="flex items-start justify-between gap-3">
+                    <h3 class="text-lg font-bold text-slate-900">{s.n}</h3>
+                    <span class="rounded-full px-2.5 py-1 text-sm font-bold text-white" style="background:var(--accent)">{s.p}</span>
+                  </div>
+                  <p class="mt-2 text-sm text-slate-600">{s.d}</p>
+                </article>
+              ))}
+            </div>
+            <p class="mt-4 text-center text-[11px] text-slate-400">*Precios de muestra — consulta la carta real del local.</p>
+          </div>
+        </section>
+      )}
+
+      {giro === "belleza" && (
+        <section id="servicios-precios" class="bg-slate-50 py-20 sm:py-24">
+          <div class="container-x">
+            <p class="text-xs font-bold uppercase tracking-[0.2em]" style="color:var(--accent)">Servicios y precios</p>
+            <h2 class="mt-3 font-sans text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Mírate y siéntete increíble</h2>
+            <div class="mt-10 grid gap-5 md:grid-cols-3">
+              {[
+                { n: "Corte y peinado", p: "B/. 10.00" },
+                { n: "Manicure y pedicure", p: "B/. 8.00" },
+                { n: "Tratamiento especial", p: "B/. 12.00" },
+              ].map((s) => (
+                <article class="flex items-center justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <h3 class="font-bold text-slate-900">{s.n}</h3>
+                  <span class="rounded-full px-2.5 py-1 text-sm font-bold text-white" style="background:var(--accent)">{s.p}</span>
+                </article>
+              ))}
+            </div>
+            <p class="mt-4 text-center text-[11px] text-slate-400">*Precios de muestra — confirma la carta real del salón.</p>
+          </div>
+        </section>
+      )}
+
+      {giro === "automotriz" && (
+        <section class="py-16">
+          <div class="container-x">
+            <div class="rounded-3xl p-8 text-center text-white sm:p-10" style="background:var(--accent)">
+              <h2 class="font-sans text-2xl font-black sm:text-3xl">¿Necesitas un servicio o repuesto?</h2>
+              <p class="mx-auto mt-3 max-w-lg text-sm text-white/85">Escríbenos por WhatsApp y te cotizamos al momento.</p>
+              <a href={wa} target="_blank" rel="noopener" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-base font-bold shadow-lg transition-transform hover:-translate-y-0.5" style="color:var(--accent)">
+                Cotizar ahora
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {giro === "salud" && (
+        <section class="bg-slate-50 py-20 sm:py-24">
+          <div class="container-x">
+            <p class="text-xs font-bold uppercase tracking-[0.2em]" style="color:var(--accent)">Confianza</p>
+            <h2 class="mt-3 font-sans text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Por qué elegirnos</h2>
+            <div class="mt-10 grid gap-5 md:grid-cols-3">
+              {[
+                { n: "Atención personalizada", d: "Te escuchamos y te asesoramos con honestidad." },
+                { n: "Profesionales calificados", d: "Experiencia y trato humano en cada consulta." },
+                { n: "Puntualidad", d: "Tu tiempo se respeta, siempre." },
+              ].map((s) => (
+                <article class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+                  <span class="grid size-11 place-items-center rounded-full text-white" style="background:var(--accent)">
+                    <svg viewBox="0 0 24 24" fill="none" class="size-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                  </span>
+                  <h3 class="mt-4 text-lg font-bold text-slate-900">{s.n}</h3>
+                  <p class="mt-2 text-sm text-slate-600">{s.d}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section id="ubicacion" class="bg-slate-50 py-20 sm:py-24">
+        <div class="container-x grid items-center gap-10 lg:grid-cols-2">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.2em]" style="color:var(--accent)">Ubicación</p>
+            <h2 class="mt-3 font-sans text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Encuéntranos fácil</h2>
+            <p class="mt-4 text-base leading-relaxed text-slate-600">{prospecto.direccion}</p>
+            <div class="mt-6 flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+              <span class="grid size-11 shrink-0 place-items-center rounded-xl text-white" style="background:var(--accent)">
+                <svg viewBox="0 0 24 24" fill="none" class="size-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
+              </span>
+              <div>
+                <p class="text-sm font-bold text-slate-900">Dirección</p>
+                <p class="mt-1 text-sm font-medium text-slate-600">{prospecto.direccion}</p>
+              </div>
+            </div>
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${prospecto.coordenadas.lat},${prospecto.coordenadas.lng}`} target="_blank" rel="noopener" class="mt-6 inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-base font-bold text-white transition-transform hover:-translate-y-0.5" style="background:var(--accent)">
+              Cómo llegar
+            </a>
+          </div>
+          <div class="overflow-hidden rounded-3xl border border-slate-200 shadow-sm">
+            <iframe
+              src={`https://www.google.com/maps?q=${prospecto.coordenadas.lat},${prospecto.coordenadas.lng}&z=16&output=embed`}
+              title={`Mapa de ${prospecto.nombre_negocio}`}
+              class="h-[22rem] w-full sm:h-[26rem]"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              allowfullscreen
+            ></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section class="relative overflow-hidden bg-slate-950 py-16 text-center text-white">
+        <div class="pointer-events-none absolute inset-0" aria-hidden="true">
+          <div class="absolute -left-32 -top-32 size-[26rem] rounded-full opacity-25" style="background:radial-gradient(circle at center, var(--accent) 0%, transparent 60%)"></div>
+        </div>
+        <div class="container-x relative">
+          <h2 class="mx-auto max-w-2xl font-sans text-3xl font-black tracking-tight sm:text-4xl">¿Listo para atendernos?</h2>
+          <p class="mx-auto mt-4 max-w-xl text-base text-slate-300">Escríbenos por WhatsApp y recibe atención rápida.</p>
+          <a href={wa} target="_blank" rel="noopener" class="mt-8 inline-flex items-center gap-3 rounded-xl px-8 py-4 text-lg font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5" style="background:var(--accent)">
+            Contactar por WhatsApp
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white py-10 pb-28 lg:pb-10">
+      <div class="container-x flex flex-col items-center justify-between gap-4 text-sm text-slate-600 sm:flex-row">
+        <p><strong class="text-slate-900">{prospecto.nombre_negocio}</strong> · {prospecto.direccion}</p>
+        <p>Lunes a Sábado · <a href={wa} target="_blank" rel="noopener" class="font-bold hover:underline" style="color:var(--accent)">WhatsApp</a></p>
+      </div>
+    </footer>
+
+    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur lg:hidden">
+      <div class="mx-auto max-w-md">
+        <a href={wa} target="_blank" rel="noopener" class="flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold text-white transition-transform active:scale-95" style="background:var(--accent)">
+          WhatsApp
+        </a>
+      </div>
+    </div>
+  </body>
+</html>

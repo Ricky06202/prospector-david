@@ -1,0 +1,28 @@
+{
+  "name": "prospector-david",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pipeline end-to-end de prospección local para negocios de David, Chiriquí. Scraper -> Landings Astro -> Capturas -> Copys WhatsApp.",
+  "scripts": {
+    "seed": "bun run src/scraper/seed.ts",
+    "scrape": "bun run src/scraper/scrape.ts",
+    "build:landings": "LOTE_IDS=$(cat output/lote_actual.json 2>/dev/null) bun run --cwd generator build",
+    "capturar": "bun run src/screenshots/capturar.ts",
+    "envio": "bun run src/envio/generar.ts",
+    "gui": "bun run src/gui/server.ts",
+    "pipeline": "bun run build:landings && bun run capturar && bun run envio"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.1",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "hono": "^4.13.4",
+    "puppeteer-core": "^25.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/node": "^22.10.0"
+  }
+}
