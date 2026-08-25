@@ -150,6 +150,8 @@ async function cargarTabla(){
   $('#tabla').innerHTML='<table><tr><th>Negocio</th><th>Tipo</th><th>Estado</th><th>Teléfono</th><th>Acciones</th></tr>'+
     r.prospectos.map(p=>
       '<tr><td><b>'+p.nombre_negocio+'</b></td><td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+p.whatsapp+'</td><td>'+
+      '<a class="btn" href="/prototipo/'+p.id+'/" target="_blank" rel="noopener">Prototipo ↗</a> '+
+      '<a class="btn" href="/api/prospectos/'+p.id+'/descargar">Fotos ⬇</a> '+
       (p.estado!=='enviado'?'<button data-accion="enviar" data-id="'+p.id+'">Enviado</button> ':'')+
       '<button data-accion="estado" data-id="'+p.id+'" data-estado="no_interesado">No</button>'+
       '</td></tr>').join('')+'</table>';
