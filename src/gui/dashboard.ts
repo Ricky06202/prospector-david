@@ -54,6 +54,7 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;vertical-align
       <button class="prim" id="btn-lote">Preparar lote</button>
       <button id="btn-generar">Generar capturas y reporte</button>
       <button class="danger" id="btn-vaciar">Vaciar lote</button>
+      <button id="btn-refresh">↻ Recargar</button>
       <span id="status" class="st-idle">idle</span>
     </div>
     <div class="row" style="margin-top:10px">
@@ -195,6 +196,12 @@ $('#btn-gmaps').onclick=async()=>{
   refrescar();
 };
 $('#btn-filtrar').onclick=cargarTabla;
+$('#btn-refresh').onclick=()=>{aviso('↻ Recargado'); refrescar();};
+// Auto-refresco cada 10s para mantenerse en sync (sin interrumpir scrapeos/pipeline).
+setInterval(async()=>{
+  const s=await api('/api/estado');
+  if(s.estado!=='corriendo') refrescar();
+},10000);
 $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')cargarTabla();});
 refrescar();
 </script>
