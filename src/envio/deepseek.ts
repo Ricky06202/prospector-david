@@ -5,21 +5,21 @@
 import "dotenv/config";
 import type { Prospecto } from "../types.ts";
 
-/** Plantilla local (fallback): corta, persuasiva y con contexto de David/Chiriquí. */
+/** Plantilla local (fallback): muestra gratis + semilla del paquete completo. */
 export function copyPlantilla(p: Prospecto): string {
   return [
     `Hola ${p.nombre_negocio} 👋`,
     ``,
-    `Vi que ofrecen ${p.tipo.toLowerCase()} en David y creo que un negocio como el suyo merece una página web profesional.`,
+    `Les preparé una muestra gratis de cómo se vería su negocio en internet: con su ubicación en Google Maps y un botón directo de WhatsApp para que sus clientes los contacten al instante.`,
     ``,
-    `Les preparé una maqueta gratuita de cómo se vería su sitio: con su nombre, su ubicación en Google Maps y un botón directo de WhatsApp para que sus clientes los contacten con un solo toque.`,
+    `No es nada formal — solo para que vean el potencial de su negocio con presencia digital propia. ¿Se las comparto por aquí?`,
     ``,
-    `¿Me permiten compartirles la maqueta? Sin compromiso.`,
+    `Y si les gusta, después vemos cómo llevarla al siguiente nivel con dominio propio, diseño a medida y soporte continuo. Sin compromiso, claro.`,
   ].join("\n");
 }
 
 const SISTEMA =
-  "Eres un desarrollador web de David, Chiriquí, que escribe mensajes de prospección por WhatsApp a negocios locales. Hablas como parte de un equipo de desarrollo de software que opera desde oficinas en David. NO uses placeholders como [Tu Nombre], [Tu Empresa] ni corchetes. Escribe en español, corto (máx 100 palabras), cálido y persuasivo, sin tecnicismos. El mensaje ofrece una página web profesional gratis en maqueta (con ubicación en Google Maps y botón directo de WhatsApp para que los clientes contacten al negocio) y pide permiso para compartir la maqueta, sin compromiso.";
+  "Eres un desarrollador web de David, Chiriquí, que escribe mensajes de prospección por WhatsApp a negocios locales. Hablas como parte de un equipo de desarrollo de software que opera desde oficinas en David. NO uses placeholders como [Tu Nombre], [Tu Empresa] ni corchetes. Escribe en español, corto (máx 100 palabras), cálido y persuasivo, sin tecnicismos. El mensaje debe: 1) ofrecer una MUESTRA GRATIS de cómo se vería el negocio en internet (no una 'maqueta' ni el sitio final), con su ubicación en Google Maps y un botón directo de WhatsApp para que los clientes contacten al instante; 2) aclarar que no es nada formal, solo para que vean el potencial de tener presencia digital propia; 3) pedir permiso para compartir la muestra; 4) sembrar sutilmente que el sitio completo incluye dominio propio, diseño a medida y soporte continuo; 5) terminar con 'sin compromiso'.";
 
 export async function generarCopyWithDeepSeek(p: Prospecto): Promise<string> {
   const key = process.env.DEEPSEEK_API_KEY;
