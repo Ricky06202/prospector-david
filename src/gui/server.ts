@@ -10,7 +10,9 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { spawn } from "node:child_process";
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join, extname } from "node:path";
+import JSZip from "jszip";
 import {
   cargarProspectos,
   guardarProspectos,
@@ -146,6 +148,24 @@ app.get("/fotos/*", async (c) => {
   } catch {
     return c.body("no encontrado", 404);
   }
+});
+
+// Descarga las fotos de un prospecto en un .zip (sin SSH).
+app.get("/api/prospectos/:id/descargar", async (c) => {
+  const id = c.req.param("id");
+  const dir = join(ROOT, "output", "screenshots", id);
+  if (!existsSync(dir)) return c.body("sin fotos", 404);
+  const archivos = (await readdir(dir)).filter((f) => f.endsWith(".png"));
+
+  const zip = new JSZip();
+  for (const f of archivos) {
+    zip.file(`${id}/${f}`, await readFile(join(dir, f)));
+  }
+  const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  return c.body(buf, 200, {
+    "Content-Type": "application/zip",
+    "Content-Disposition": `attachment; filename="${id}_fotos.zip"`,
+  });
 });
 
 app.get("/", (c) => c.html(DASHBOARD));

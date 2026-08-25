@@ -125,7 +125,8 @@ async function loadLote(){
       '<div class="row" style="margin-top:8px">'+
       '<button class="wa" onclick="enviar(\''+p.id+'\')">Marcar enviado</button>'+
       '<a class="button wa" target="_blank" rel="noopener" href="'+wa+'" style="text-decoration:none;color:#fff">Abrir WhatsApp</a>'+
-      '<a href="/prototipo/'+p.id+'/" target="_blank" rel="noopener" style="color:var(--b);font-weight:600">Abrir prototipo ↗</a>'+
+      '<a href="/prototipo/'+p.id+'/" target="_blank" rel="noopener" style="color:var(--b);font-weight:600">Prototipo ↗</a>'+
+      '<a href="/api/prospectos/'+p.id+'/descargar" style="color:var(--b);font-weight:600">Descargar fotos ⬇</a>'+
       '<button onclick="estado(\''+p.id+'\',\'no_interesado\')">No interesado</button>'+
       '<button onclick="estado(\''+p.id+'\',\'reagendar\')">Reagendar</button>'+
       '</div></div>';
