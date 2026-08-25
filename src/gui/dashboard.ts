@@ -210,11 +210,12 @@ document.addEventListener('click', async (ev)=>{
 
 $('#q').addEventListener('keydown',e=>{ if(e.key==='Enter') cargarTabla(); });
 
-// Auto-refresco cada 10s (en sync; se pausa mientras corre algo).
+// Sin auto-refresco de contenido: el usuario recarga con "↻ Recargar".
+// Solo se actualiza el indicador de estado (idle/corriendo/listo) sin tocar la página.
 setInterval(async()=>{
   const s=await api('/api/estado');
-  if(s.estado!=='corriendo') refrescar();
-},10000);
+  const st=$('#status'); st.className='st-'+s.estado; st.textContent=s.estado+(s.estado==='corriendo'?'…':'');
+},3000);
 
 refrescar();
 </script>
