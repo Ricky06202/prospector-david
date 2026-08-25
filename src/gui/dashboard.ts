@@ -135,7 +135,7 @@ async function loadLote(){
       '<div class="row" style="margin-top:8px">'+
       '<button class="wa" data-accion="enviar" data-id="'+p.id+'">Marcar enviado</button>'+
       '<a class="btn" target="_blank" rel="noopener" href="'+wa+'">Abrir WhatsApp</a>'+
-      '<a class="btn" href="/prototipo/'+p.id+'/" target="_blank" rel="noopener">Prototipo ↗</a>'+
+      '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo ↗</button>'+
       '<a class="btn" href="/api/prospectos/'+p.id+'/descargar">Descargar fotos ⬇</a>'+
       '<button data-accion="estado" data-id="'+p.id+'" data-estado="no_interesado">No interesado</button>'+
       '<button data-accion="estado" data-id="'+p.id+'" data-estado="reagendar">Reagendar</button>'+
@@ -150,7 +150,7 @@ async function cargarTabla(){
   $('#tabla').innerHTML='<table><tr><th>Negocio</th><th>Tipo</th><th>Estado</th><th>Teléfono</th><th>Acciones</th></tr>'+
     r.prospectos.map(p=>
       '<tr><td><b>'+p.nombre_negocio+'</b></td><td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+p.whatsapp+'</td><td>'+
-      '<a class="btn" href="/prototipo/'+p.id+'/" target="_blank" rel="noopener">Prototipo ↗</a> '+
+      '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo ↗</button> '+
       '<a class="btn" href="/api/prospectos/'+p.id+'/descargar">Fotos ⬇</a> '+
       (p.estado!=='enviado'?'<button data-accion="enviar" data-id="'+p.id+'">Enviado</button> ':'')+
       '<button data-accion="estado" data-id="'+p.id+'" data-estado="no_interesado">No</button>'+
@@ -208,6 +208,16 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='enviar'){ enviar(id); }
   else if(accion==='estado'){ estado(id,est); }
   else if(accion==='foto'){ window.open(b.dataset.src); }
+  else if(accion==='prototipo'){
+    const check=await fetch('/prototipo/'+id+'/');
+    if(check.ok){ window.open('/prototipo/'+id+'/','_blank'); }
+    else{
+      aviso('⏳ Generando prototipo de '+id+'…');
+      await api('/api/prospectos/'+id+'/prototipo',{method:'POST'});
+      aviso('✓ Prototipo listo');
+      window.open('/prototipo/'+id+'/','_blank');
+    }
+  }
 });
 
 $('#q').addEventListener('keydown',e=>{ if(e.key==='Enter') cargarTabla(); });

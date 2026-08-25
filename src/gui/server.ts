@@ -20,6 +20,7 @@ import {
   marcarEnviado,
   prepararLote,
   leerLote,
+  guardarLote,
   ROOT,
 } from "../lib/prospectos-io.ts";
 import { escribirStatus, leerStatus } from "../lib/pipeline-status.ts";
@@ -91,6 +92,23 @@ app.post("/api/lote/vaciar", async (c) => {
 
 app.post("/api/generar", async (c) => {
   await ejecutarPipeline();
+  return c.json({ ok: true });
+});
+
+// Genera (si falta) la landing de UN prospecto y la deja lista en /prototipo/<id>/
+app.post("/api/prospectos/:id/prototipo", async (c) => {
+  const id = c.req.param("id");
+  const loteActual = await leerLote();
+  await guardarLote([id]);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const ch = spawn("bun", ["run", "build:landings"], { cwd: ROOT, stdio: "inherit" });
+      ch.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`build falló (${code})`))));
+      ch.on("error", reject);
+    });
+  } finally {
+    await guardarLote(loteActual);
+  }
   return c.json({ ok: true });
 });
 
