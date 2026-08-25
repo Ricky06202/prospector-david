@@ -123,10 +123,11 @@ async function loadLote(){
       (copDe(p.id)?'<div class="copy">'+copDe(p.id)+'</div>':'')+
       '<div class="fotos" id="f-'+p.id+'"><span class="muted">cargando fotos…</span></div>'+
       '<div class="row" style="margin-top:8px">'+
-      '<button class="wa" onclick="enviar(\\''+p.id+'\\')">Marcar enviado</button>'+
+      '<button class="wa" onclick="enviar(\''+p.id+'\')">Marcar enviado</button>'+
       '<a class="button wa" target="_blank" rel="noopener" href="'+wa+'" style="text-decoration:none;color:#fff">Abrir WhatsApp</a>'+
-      '<button onclick="estado(\\''+p.id+'\\',\\'no_interesado\\')">No interesado</button>'+
-      '<button onclick="estado(\\''+p.id+'\\',\\'reagendar\\')">Reagendar</button>'+
+      '<a href="/prototipo/'+p.id+'/" target="_blank" rel="noopener" style="color:var(--b);font-weight:600">Abrir prototipo ↗</a>'+
+      '<button onclick="estado(\''+p.id+'\',\'no_interesado\')">No interesado</button>'+
+      '<button onclick="estado(\''+p.id+'\',\'reagendar\')">Reagendar</button>'+
       '</div></div>';
   }).join('');
   r.prospectos.forEach(p=>cargarFotos(p.id));

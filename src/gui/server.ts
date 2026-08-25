@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { spawn } from "node:child_process";
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { join, extname } from "node:path";
 import {
   cargarProspectos,
   guardarProspectos,
@@ -149,6 +149,25 @@ app.get("/fotos/*", async (c) => {
 });
 
 app.get("/", (c) => c.html(DASHBOARD));
+
+// Prototipos generados (landings) — abre la landing real de un prospecto.
+const DIST = join(ROOT, "generator", "dist");
+const MIME: Record<string, string> = {
+  ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
+  ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
+  ".webp": "image/webp", ".woff2": "font/woff2", ".json": "application/json",
+};
+app.get("/prototipo/*", async (c) => {
+  const p = c.req.path.replace("/prototipo/", "");
+  const file = join(DIST, p);
+  if (!file.startsWith(DIST)) return c.body("no", 400);
+  try {
+    const data = await readFile(file);
+    return c.body(data, 200, { "Content-Type": MIME[extname(file)] || "application/octet-stream" });
+  } catch {
+    return c.body("prototipo no generado aún", 404);
+  }
+});
 
 const port = Number(process.env.PORT || 4877);
 await mkdir(join(ROOT, "output"), { recursive: true });

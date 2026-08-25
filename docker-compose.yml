@@ -12,6 +12,7 @@ services:
     volumes:
       - ./data:/app/data          # base de prospectos (persistente)
       - ./output:/app/output      # capturas, lote y reportes (persistente)
+      - ./landings:/app/generator/dist   # landings generadas (persistente, para abrir prototipos)
       - ./.env:/app/.env:ro       # tu API key (no se hornea en la imagen)
     environment:
       - CHROMIUM_PATH=/usr/bin/chromium
