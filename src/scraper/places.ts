@@ -24,10 +24,24 @@ const ROOT = join(__dirname, "..", "..");
 const DATA_FILE = join(ROOT, "data", "prospectos.json");
 
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
-const QUERIES = (process.env.PLACES_QUERIES || "restaurantes en David Chiriquí, salones de belleza en David Chiriquí, barberías en David Chiriquí")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
+
+// Lista curada de giros de David, Chiriquí (por defecto, sin configurar nada).
+const GIROS = [
+  "restaurantes en David Chiriquí", "cafeterías en David Chiriquí",
+  "salones de belleza en David Chiriquí", "barberías en David Chiriquí",
+  "gimnasios en David Chiriquí", "veterinarias en David Chiriquí",
+  "farmacias en David Chiriquí", "clínicas médicas en David Chiriquí",
+  "clínicas dentales en David Chiriquí", "talleres mecánicos en David Chiriquí",
+  "tiendas de repuestos en David Chiriquí", "tiendas de ropa en David Chiriquí",
+  "supermercados en David Chiriquí", "abogados en David Chiriquí",
+  "agencias de viajes en David Chiriquí", "hoteles en David Chiriquí",
+  "ferreterías en David Chiriquí", "panaderías en David Chiriquí",
+  "ópticas en David Chiriquí", "electrónicos en David Chiriquí",
+];
+
+// Si no configuraste PLACES_QUERIES, corre toda la lista curada.
+const QUERIES = (process.env.PLACES_QUERIES || "").split(",").map((s) => s.trim()).filter(Boolean);
+const queriesFinales = QUERIES.length ? QUERIES : GIROS;
 const LIMITE = Number(process.env.PLACES_LIMITE || 20);
 const SOLO_SIN_WEB = process.env.SOLO_SIN_WEB !== "false";
 
@@ -67,7 +81,7 @@ const extraidos: Prospecto[] = [];
 let descartados = 0;
 let conWeb = 0;
 
-for (const q of QUERIES) {
+for (const q of queriesFinales) {
   console.log(`[places] Buscando: ${q}`);
   const res = await fetch(`https://places.googleapis.com/v1/places:searchText?languageCode=es`, {
     method: "POST",
