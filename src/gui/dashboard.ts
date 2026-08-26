@@ -116,6 +116,11 @@ tbody tr:hover{background:#f8fafc}
 .t-name{display:flex;align-items:center;gap:9px;font-weight:600}
 .t-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .empty{padding:32px;text-align:center;color:var(--muted);font-size:13px}
+.cb-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:12px;margin-top:5px;max-height:300px;overflow-y:auto;z-index:60;box-shadow:var(--shadow-lg)}
+.cb-item{padding:9px 13px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #f1f5f9}
+.cb-item:last-child{border-bottom:none}
+.cb-item:hover{background:#f0fdfa}
+.cb-item .st{font-size:11px;color:var(--muted);flex-shrink:0}
 </style>
 </head>
 <body>
@@ -208,7 +213,11 @@ tbody tr:hover{background:#f8fafc}
       <p class="sub">Email de presentación, respuesta a clientes y cotizaciones (texto o PDF).</p>
 
       <div class="row">
-        <select id="txt-prospecto" style="min-width:280px"></select>
+        <div class="cb" style="position:relative;min-width:280px">
+          <input id="txt-buscar" placeholder="🔍 Buscar empresa…" autocomplete="off" style="width:100%">
+          <input type="hidden" id="txt-prospecto">
+          <div id="txt-lista" class="cb-list hidden"></div>
+        </div>
         <button data-accion="txt-email">📧 Email de presentación</button>
         <button data-accion="txt-seg">🔁 Seguimiento / recordatorio</button>
       </div>
@@ -373,25 +382,49 @@ async function refrescar(){
 }
 
 let PROS={};
-function prosTel(id){ return PROS[id]||''; }
+function prosTel(id){ return PROS[id]?PROS[id].whatsapp:''; }
 async function poblarSelect(){
-  const sel=$('#txt-prospecto');
-  const cur=sel.value;
   const r=await api('/api/prospectos');
-  PROS={}; r.prospectos.forEach(p=>PROS[p.id]=p.whatsapp);
-  const ordenados=r.prospectos.slice().sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio));
-  sel.innerHTML=ordenados.map(p=>'<option value="'+p.id+'">'+p.nombre_negocio+' · '+(p.estado||'nuevo')+'</option>').join('');
-  if(cur) sel.value=cur;
+  PROS={};
+  r.prospectos.forEach(p=>PROS[p.id]={whatsapp:p.whatsapp,nombre:p.nombre_negocio,estado:p.estado||'nuevo'});
+  const sel=$('#txt-prospecto').value;
+  if(sel && PROS[sel]){ $('#txt-buscar').value=PROS[sel].nombre; }
+  else { $('#txt-prospecto').value=''; $('#txt-buscar').value=''; }
   mostrarInfoSel();
 }
-function mostrarInfoSel(){
-  const sel=$('#txt-prospecto'), info=$('#txt-info');
-  const opt=sel.options[sel.selectedIndex];
-  const id=sel.value;
-  info.textContent=opt?('Seleccionado: '+opt.text+' · Tel: '+prosTel(id)):'Selecciona un prospecto';
-  info.style.color= id? '#0d9488':'#b45309';
+function filtrarLista(){
+  const q=$('#txt-buscar').value.toLowerCase();
+  const lista=$('#txt-lista');
+  const items=Object.entries(PROS)
+    .filter(([,pr])=>pr.nombre.toLowerCase().includes(q))
+    .sort((a,b)=>a[1].nombre.localeCompare(b[1].nombre))
+    .slice(0,30)
+    .map(([id,pr])=>'<div class="cb-item" data-id="'+id+'"><span>'+pr.nombre+'</span><span class="st">'+pr.estado+'</span></div>');
+  lista.innerHTML=items.join('')||'<div class="cb-item" style="color:var(--muted)">Sin resultados</div>';
+  lista.classList.remove('hidden');
 }
-$('#txt-prospecto').addEventListener('change', mostrarInfoSel);
+$('#txt-buscar').addEventListener('focus',filtrarLista);
+$('#txt-buscar').addEventListener('input',filtrarLista);
+$('#txt-lista').addEventListener('click',(e)=>{
+  const it=e.target.closest('.cb-item');
+  if(!it) return;
+  const id=it.dataset.id;
+  $('#txt-prospecto').value=id;
+  $('#txt-buscar').value=PROS[id].nombre;
+  $('#txt-lista').classList.add('hidden');
+  mostrarInfoSel();
+});
+document.addEventListener('click',(e)=>{
+  if(!e.target.closest('.cb')) $('#txt-lista').classList.add('hidden');
+});
+function mostrarInfoSel(){
+  const id=$('#txt-prospecto').value, info=$('#txt-info');
+  const pr=PROS[id];
+  info.textContent=pr
+    ? 'Seleccionado: '+pr.nombre+' · '+pr.estado+' · Tel: '+pr.whatsapp
+    : 'Busca y selecciona una empresa…';
+  info.style.color= pr? '#0d9488':'#b45309';
+}
 
 // Cotizador: mostrar/ocultar el campo de productos según el tipo de proyecto.
 function cotToggle(){

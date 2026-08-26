@@ -51,42 +51,60 @@ export function cotizar(tipo: TipoProyecto, productos = 0, conMantenimiento = fa
 /** HTML de cotización con marca (para el PDF) — limpio y profesional. */
 export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, productos: number, conMantenimiento: boolean, fecha: string): string {
   const c = cotizar(tipo, productos, conMantenimiento);
-  const filas: string[] = [
-    `<tr><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;color:#334155">Proyecto</td><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:700;text-align:right;color:#0f172a">${c.tipoLabel}</td></tr>`,
-  ];
-  if (tipo === "catalogo") {
-    filas.push(
-      `<tr><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;color:#334155">Base del catálogo</td><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;text-align:right;color:#0f172a">B/. ${PRECIOS.catalogoBase.toFixed(2)}</td></tr>`,
-      `<tr><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;color:#334155">Productos (${productos} × B/. ${PRECIOS.porProducto.toFixed(2)})</td><td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;text-align:right;color:#0f172a">B/. ${(productos * PRECIOS.porProducto).toFixed(2)}</td></tr>`
-    );
-  }
-  if (conMantenimiento) {
-    filas.push(`<tr><td style="padding:10px 14px;color:#334155">Mantenimiento mensual</td><td style="padding:10px 14px;text-align:right;color:#0f172a">B/. ${PRECIOS.mantenimiento.toFixed(2)} /mes</td></tr>`);
-  }
+  const fila = (nombre: string, monto: number, destacado = false) =>
+    `<tr${destacado ? ' style="background:#f0fdfa"' : ""}><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">B/. ${monto.toFixed(2)}</td></tr>`;
+
+  const filas =
+    tipo === "catalogo"
+      ? fila("Base del catálogo", PRECIOS.catalogoBase) +
+        fila(`Publicación de ${productos} productos`, productos * PRECIOS.porProducto)
+      : fila("Proyecto", c.base);
+
+  const mantTexto = conMantenimiento
+    ? `<div style="margin-top:12px;font-size:12px;color:#64748b">Mantenimiento mensual incluido: <b style="color:#0f172a">B/. ${PRECIOS.mantenimiento.toFixed(2)}/mes</b></div>`
+    : `<div style="margin-top:12px;font-size:12px;color:#64748b">Mantenimiento opcional: <b style="color:#0f172a">B/. ${PRECIOS.mantenimiento.toFixed(2)}/mes</b> para mantener la página actualizada.</div>`;
+
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
-    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
     body{margin:0;color:#0f172a}
-    .top{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;padding:28px 36px}
-    .top h1{margin:0;font-size:24px;font-weight:800}
-    .top p{margin:4px 0 0;color:#ccfbf1;font-size:13px}
-    .body{padding:30px 36px}
-    .titulo{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #0d9488;padding-bottom:12px}
-    .titulo h2{margin:0;font-size:18px;font-weight:800}
-    .titulo span{font-size:12px;color:#64748b}
-    table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
-    .total td{font-weight:800;font-size:18px;color:#0d9488;padding-top:14px}
-    .nota{margin-top:20px;padding:14px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:12px;color:#134e4a}
-    .foot{margin-top:28px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px}
+    .brand{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;padding:20px 40px;display:flex;justify-content:space-between;align-items:center}
+    .brand .t{font-weight:800;font-size:15px;letter-spacing:.02em}
+    .brand .s{font-size:11px;color:#ccfbf1}
+    .brand .n{font-size:11px;color:#ccfbf1;text-align:right;line-height:1.5}
+    .body{padding:30px 40px}
+    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:2px solid #0d9488}
+    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em}
+    .tipo{color:#64748b;font-size:12px;margin-top:3px}
+    .fecha{font-size:12px;color:#64748b}
+    .total-box{background:#0d9488;color:#fff;border-radius:14px;padding:16px 24px;margin:20px 0;display:flex;justify-content:space-between;align-items:center}
+    .total-box .lbl{font-size:11px;color:#ccfbf1;text-transform:uppercase;letter-spacing:.1em}
+    .total-box .val{font-size:32px;font-weight:800;letter-spacing:-.02em}
+    .total-box .nota{font-size:11px;color:#ccfbf1}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th{text-align:left;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px;border-bottom:1px solid #e2e8f0}
+    th.m{text-align:right}
+    .nota{margin-top:18px;padding:14px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:12px;color:#134e4a;line-height:1.6}
+    .foot{margin-top:24px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
   </style></head><body>
-    <div class="top"><h1>Cotización</h1><p>Desarrollo web · David, Chiriquí</p></div>
+    <div class="brand">
+      <div><div class="t">Cotización</div><div class="s">Desarrollo web · David, Chiriquí</div></div>
+      <div class="n">Ricardo Sanjur<br>WhatsApp 6510-4147</div>
+    </div>
     <div class="body">
-      <div class="titulo"><h2>${nombreNegocio}</h2><span>${fecha}</span></div>
-      <table>
-        ${filas.join("\n")}
-        <tr class="total"><td>TOTAL</td><td style="text-align:right">B/. ${c.total.toFixed(2)}</td></tr>
-      </table>
-      <div class="nota"><b>Incluye:</b> dominio propio, alojamiento, diseño a medida y botón directo de WhatsApp.${conMantenimiento ? "" : " Mantenimiento mensual opcional: B/. " + PRECIOS.mantenimiento.toFixed(2) + "/mes."}<br>Plazos y detalles se confirman en una llamada breve.</div>
-      <div class="foot">Cotización sin compromiso · Válida por 15 días · Ricardo Sanjur · WhatsApp 6510-4147</div>
+      <div class="cabeza">
+        <div><div class="neg">${nombreNegocio}</div><div class="tipo">${c.tipoLabel}</div></div>
+        <div class="fecha">${fecha}</div>
+      </div>
+      <div class="total-box">
+        <div><div class="lbl">Total · pago único</div><div class="nota">${c.tipoLabel}</div></div>
+        <div class="val">B/. ${c.total.toFixed(2)}</div>
+      </div>
+      <table><thead><tr><th>Concepto</th><th class="m">Monto</th></tr></thead><tbody>
+        ${filas}
+      </tbody></table>
+      ${mantTexto}
+      <div class="nota"><b>Incluye:</b> dominio propio, alojamiento, diseño a medida y botón directo de WhatsApp. Plazos y detalles se confirman en una llamada breve.</div>
+      <div class="foot"><span>Cotización sin compromiso · Válida por 15 días</span><span>Ricardo Sanjur · WhatsApp 6510-4147</span></div>
     </div>
   </body></html>`;
 }
