@@ -183,6 +183,7 @@ tbody tr:hover{background:#f8fafc}
       <button data-accion="txt-email">📧 Email de presentación</button>
       <button data-accion="txt-seg">🔁 Seguimiento / recordatorio</button>
     </div>
+    <div id="txt-info" class="muted" style="margin-top:6px;font-weight:700">Selecciona un prospecto…</div>
     <textarea id="txt-out" rows="8" placeholder="Aquí aparecerá tu texto…" style="width:100%;margin-top:12px;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
     <div class="row" style="margin-top:10px">
       <button data-accion="txt-copiar">📋 Copiar</button>
@@ -331,9 +332,20 @@ async function poblarSelect(){
   const cur=sel.value;
   const r=await api('/api/prospectos');
   PROS={}; r.prospectos.forEach(p=>PROS[p.id]=p.whatsapp);
-  sel.innerHTML=r.prospectos.map(p=>'<option value="'+p.id+'">'+(p.estado||'nuevo')+' · '+p.nombre_negocio+'</option>').join('');
+  const ordenados=r.prospectos.slice().sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio));
+  sel.innerHTML=ordenados.map(p=>'<option value="'+p.id+'">'+p.nombre_negocio+' · '+(p.estado||'nuevo')+'</option>').join('');
   if(cur) sel.value=cur;
+  mostrarInfoSel();
 }
+function mostrarInfoSel(){
+  const sel=$('#txt-prospecto'), info=$('#txt-info');
+  const opt=sel.options[sel.selectedIndex];
+  const id=sel.value;
+  info.textContent=opt?('Seleccionado: '+opt.text+' · Tel: '+prosTel(id)):'Selecciona un prospecto';
+  // resaltar para que verifiques antes de generar
+  info.style.color= id? '#0d9488':'#b45309';
+}
+$('#txt-prospecto').addEventListener('change', mostrarInfoSel);
 
 async function estado(id,e){ await api('/api/prospectos/'+id+'/estado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado:e})}); refrescar(); }
 async function enviar(id){ await estado(id,'enviado'); }
