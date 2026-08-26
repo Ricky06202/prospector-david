@@ -1,4 +1,4 @@
-/** Dashboard de Prospector David — interfaz SaaS moderna (todo por data-*, sin bugs de comillas). */
+/** Dashboard de Prospector David — SPA multi-página (sidebar como navegador). */
 export const DASHBOARD = `<!doctype html>
 <html lang="es">
 <head>
@@ -22,14 +22,14 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 svg{display:block}
 a{color:inherit}
 
-/* ---------- Sidebar ---------- */
+/* ---------- Sidebar (navegador de páginas) ---------- */
 .sidebar{position:fixed;inset:0 auto 0 0;width:244px;background:linear-gradient(180deg,#0f172a 0%,#134e4a 130%);color:#e2e8f0;display:flex;flex-direction:column;padding:22px 16px;z-index:30}
 .brand{display:flex;align-items:center;gap:11px;padding:0 6px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
 .brand-logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#14b8a6,#0e7490);display:grid;place-items:center;font-size:20px;box-shadow:0 4px 14px -4px rgba(20,184,166,.6)}
 .brand b{display:block;font-size:15px;letter-spacing:-.01em;color:#fff}
 .brand span{font-size:11px;color:#94a3b8}
 .side-nav{margin-top:18px;display:flex;flex-direction:column;gap:4px;flex:1}
-.side-nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:#cbd5e1;text-decoration:none;font-weight:600;font-size:13px;transition:.15s}
+.side-nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:#cbd5e1;text-decoration:none;font-weight:600;font-size:13px;transition:.15s;cursor:pointer}
 .side-nav a:hover{background:rgba(255,255,255,.07);color:#fff}
 .side-nav a.active{background:rgba(20,184,166,.16);color:#5eead4}
 .side-nav a .ic{opacity:.8}
@@ -52,6 +52,12 @@ a{color:inherit}
 .pill::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.85}
 .st-corriendo::before{animation:blink 1s infinite}
 @keyframes blink{50%{opacity:.2}}
+.aviso{border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:13px;font-weight:600;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+.av-err{background:#fee2e2;color:#b91c1c;border-color:#fecaca}
+
+/* ---------- Pantallas ---------- */
+.screen{display:none}
+.screen.activa{display:block}
 
 /* ---------- Botones ---------- */
 button{font:inherit;font-weight:700;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;transition:.15s;font-size:13px}
@@ -61,14 +67,13 @@ button.prim{background:linear-gradient(135deg,#14b8a6,#0d9488);border:none;color
 button.prim:hover{background:linear-gradient(135deg,#0d9488,#0f766e);filter:brightness(1.04)}
 button.wa{background:#25D366;border:none;color:#fff;box-shadow:0 6px 16px -6px rgba(37,211,102,.5)}
 button.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
-button.ghost{border-color:transparent;background:transparent;color:var(--muted)}
 a.btn{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--brand);text-decoration:none;font-size:13px;padding:7px 10px;border-radius:9px}
 a.btn:hover{background:#f0fdfa}
-input,select{font:inherit;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink)}
-input:focus,select:focus,button:focus{outline:2px solid rgba(13,148,136,.35);outline-offset:1px;border-color:var(--brand)}
+input,select,textarea{font:inherit;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus,button:focus{outline:2px solid rgba(13,148,136,.35);outline-offset:1px;border-color:var(--brand)}
 
 /* ---------- KPIs ---------- */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:22px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);transition:.18s}
 .kpi:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
 .kpi-ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex-shrink:0}
@@ -80,10 +85,8 @@ input:focus,select:focus,button:focus{outline:2px solid rgba(13,148,136,.35);out
 .card h2{margin:0 0 4px;font-size:16px;font-weight:800;letter-spacing:-.01em}
 .card .sub{color:var(--muted);font-size:12px;margin:0 0 14px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.aviso{border-radius:12px;padding:12px 16px;margin-top:14px;font-size:13px;font-weight:600;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;box-shadow:inset 0 2px 6px -4px rgba(34,197,94,.4)}
-.av-err{background:#fee2e2;color:#b91c1c;border-color:#fecaca}
 
-/* ---------- Prospectos lote ---------- */
+/* ---------- Prospectos ---------- */
 .p-card{border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;background:#fff;transition:.18s;box-shadow:var(--shadow)}
 .p-card:hover{box-shadow:var(--shadow-lg)}
 .p-top{display:flex;align-items:center;gap:12px}
@@ -101,6 +104,7 @@ input:focus,select:focus,button:focus{outline:2px solid rgba(13,148,136,.35);out
 .fotos img{height:66px;border-radius:9px;border:1px solid var(--line);cursor:zoom-in;transition:.15s}
 .fotos img:hover{transform:scale(1.04);box-shadow:var(--shadow)}
 .p-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--muted);font-size:12px}
 
 /* ---------- Tabla ---------- */
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
@@ -121,22 +125,21 @@ tbody tr:hover{background:#f8fafc}
     <div><b>Prospector</b><span>David · Chiriquí</span></div>
   </div>
   <nav class="side-nav">
-    <a class="active" href="#"><span class="ic">◧</span> Dashboard</a>
-    <a href="#lote"><span class="ic">▤</span> Lote del día</a>
-    <a href="#prospectos"><span class="ic">☷</span> Prospectos</a>
-    <a href="#scrapers"><span class="ic">↻</span> Scrapers</a>
+    <a data-pantalla="dashboard" class="active" href="#"><span class="ic">◧</span> Dashboard</a>
+    <a data-pantalla="prospectos" href="#"><span class="ic">☷</span> Prospectos</a>
+    <a data-pantalla="herramientas" href="#"><span class="ic">⚙</span> Herramientas</a>
   </nav>
   <div class="side-foot">
     <b><span class="dot"></span>Sistema operativo</b>
     Prospección local · David, Chiriquí<br>
-    Genera, captura y envía en un solo lugar.
+    Genera, captura, cotiza y envía.
   </div>
 </aside>
 
 <div class="main">
   <header class="topbar">
     <div>
-      <h1>Dashboard</h1>
+      <h1 id="page-title">Dashboard</h1>
       <p>Prospección local · David, Chiriquí</p>
     </div>
     <div class="top-actions">
@@ -145,100 +148,110 @@ tbody tr:hover{background:#f8fafc}
     </div>
   </header>
 
-  <section class="kpis" id="stats"></section>
+  <p id="aviso" class="aviso hidden"></p>
 
-  <section class="card" id="lote">
-    <h2>Lote del día</h2>
-    <p class="sub">Prepara tu lote diario (nunca se repiten los enviados) y genera sus landings, capturas y copys.</p>
-    <div class="row">
-      <input type="number" id="lote-n" value="10" min="1" max="50" style="width:92px">
-      <button class="prim" data-accion="preparar">Preparar lote</button>
-      <button data-accion="generar">Generar capturas y reporte</button>
-      <button class="danger" data-accion="vaciar">Vaciar lote</button>
-    </div>
-    <p id="aviso" class="aviso hidden"></p>
-  </section>
+  <!-- ============ DASHBOARD ============ -->
+  <section class="screen activa" id="scr-dashboard">
+    <div class="kpis" id="stats"></div>
 
-  <section class="card" id="scrapers">
-    <h2>Ampliar base</h2>
-    <p class="sub">Scrapea el directorio formal de Chiriquí o Google Maps (sector informal, con coordenadas).</p>
-    <div class="row">
-      <button data-accion="scrape">↻ Scrapear CAMCHI</button>
-      <button data-accion="gmaps">↻ Scrapear Google Maps</button>
-      <button data-accion="places">☆ Scrapear Google Places</button>
-    </div>
-  </section>
-
-  <section class="card" id="prospectos">
-    <h2>Prospectos del lote</h2>
-    <p class="sub">Los que estás enviando hoy. Revisa, envía y marca.</p>
-    <div id="lote-list"></div>
-  </section>
-
-  <section class="card">
-    <h2>📧 Generador de textos</h2>
-    <p class="sub">Email de presentación para enviar por correo, o seguimiento corto para retomar a los que ya contactaste.</p>
-    <div class="row">
-      <select id="txt-prospecto" style="min-width:280px"></select>
-      <button data-accion="txt-email">📧 Email de presentación</button>
-      <button data-accion="txt-seg">🔁 Seguimiento / recordatorio</button>
-    </div>
-    <div id="txt-info" class="muted" style="margin-top:6px;font-weight:700">Selecciona un prospecto…</div>
-    <textarea id="txt-out" rows="8" placeholder="Aquí aparecerá tu texto…" style="width:100%;margin-top:12px;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
-    <div class="row" style="margin-top:10px">
-      <button data-accion="txt-copiar">📋 Copiar</button>
-      <a id="txt-wa" class="btn hidden" target="_blank" rel="noopener">Abrir en WhatsApp ↗</a>
-    </div>
-
-    <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
-      <h3 style="margin:0 0 4px">🧾 Cotizador</h3>
-      <p class="sub">Genera la cotización con desglose (landing / catálogo / e-commerce). Precios configurables en .env.</p>
+    <div class="card" id="lote">
+      <h2>Lote del día</h2>
+      <p class="sub">Prepara tu lote diario (nunca se repiten los enviados) y genera sus landings, capturas y copys.</p>
       <div class="row">
-        <select id="cot-tipo" style="min-width:200px">
-          <option value="landing">Landing de presentación</option>
-          <option value="catalogo" selected>Catálogo en línea + WhatsApp</option>
-          <option value="ecommerce">Tienda en línea con pagos</option>
-        </select>
-        <input type="number" id="cot-productos" placeholder="Nº productos" min="0" value="0" style="width:130px">
-        <label style="display:flex;align-items:center;gap:6px;font-weight:600"><input type="checkbox" id="cot-mant" checked> Mantenimiento mensual</label>
-        <button data-accion="cot-generar">🧾 Generar cotización</button>
-      </div>
-      <textarea id="cot-out" rows="9" placeholder="Cotización…" style="width:100%;margin-top:10px;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
-      <div class="row" style="margin-top:10px">
-        <button data-accion="cot-copiar">📋 Copiar</button>
-        <button data-accion="cot-pdf">📄 Descargar PDF</button>
-        <span class="muted" id="cot-info"></span>
+        <input type="number" id="lote-n" value="10" min="1" max="50" style="width:92px">
+        <button class="prim" data-accion="preparar">Preparar lote</button>
+        <button data-accion="generar">Generar capturas y reporte</button>
+        <button class="danger" data-accion="vaciar">Vaciar lote</button>
       </div>
     </div>
 
-    <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
-      <h3 style="margin:0 0 4px">💬 Asistente de respuestas</h3>
-      <p class="sub">Pega el mensaje que te escribió el cliente y genera una respuesta sugerida con la oferta.</p>
-      <textarea id="resp-in" rows="3" placeholder="Mensaje entrante del cliente…" style="width:100%;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
-      <div class="row" style="margin-top:10px">
-        <button data-accion="resp-generar">✨ Generar respuesta</button>
-      </div>
-      <textarea id="resp-out" rows="8" placeholder="Respuesta sugerida…" style="width:100%;margin-top:10px;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
-      <div class="row" style="margin-top:10px">
-        <button data-accion="resp-copiar">📋 Copiar</button>
-        <a id="resp-wa" class="btn hidden" target="_blank" rel="noopener">Abrir en WhatsApp ↗</a>
+    <div class="card" id="scrapers">
+      <h2>Ampliar base</h2>
+      <p class="sub">Scrapea el directorio formal de Chiriquí o Google Maps/Places (con coordenadas reales).</p>
+      <div class="row">
+        <button data-accion="scrape">↻ Scrapear CAMCHI</button>
+        <button data-accion="gmaps">↻ Scrapear Google Maps</button>
+        <button data-accion="places">☆ Scrapear Google Places</button>
       </div>
     </div>
   </section>
 
-  <section class="card">
-    <h2>Todos los prospectos</h2>
-    <p class="sub">Control total de tu base. El prototipo de cualquier prospecto se regenera solo si falta.</p>
-    <div class="row" style="margin-bottom:14px">
-      <input id="q" placeholder="Buscar negocio…" style="min-width:220px">
-      <select id="f-estado">
-        <option value="">Todos</option><option value="nuevo">Nuevos</option>
-        <option value="en_cola">En cola</option><option value="enviado">Enviados</option>
-        <option value="no_interesado">No interesados</option>
-      </select>
-      <button data-accion="filtrar">Filtrar</button>
+  <!-- ============ PROSPECTOS ============ -->
+  <section class="screen" id="scr-prospectos">
+    <div class="card">
+      <h2>Prospectos del lote</h2>
+      <p class="sub">Los que estás enviando hoy. Revisa, envía y marca.</p>
+      <div id="lote-list"></div>
     </div>
-    <div class="table-wrap"><div id="tabla"></div></div>
+
+    <div class="card">
+      <h2>Todos los prospectos</h2>
+      <p class="sub">Control total de tu base. El prototipo de cualquier prospecto se regenera solo si falta.</p>
+      <div class="row" style="margin-bottom:14px">
+        <input id="q" placeholder="Buscar negocio…" style="min-width:220px">
+        <select id="f-estado">
+          <option value="">Todos</option><option value="nuevo">Nuevos</option>
+          <option value="en_cola">En cola</option><option value="enviado">Enviados</option>
+          <option value="interesado">Interesados</option><option value="cliente">Clientes</option>
+          <option value="no_interesado">No interesados</option>
+        </select>
+        <button data-accion="filtrar">Filtrar</button>
+      </div>
+      <div class="table-wrap"><div id="tabla"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ HERRAMIENTAS ============ -->
+  <section class="screen" id="scr-herramientas">
+    <div class="card">
+      <h2>📧 Generador de textos</h2>
+      <p class="sub">Email de presentación, respuesta a clientes y cotizaciones (texto o PDF).</p>
+
+      <div class="row">
+        <select id="txt-prospecto" style="min-width:280px"></select>
+        <button data-accion="txt-email">📧 Email de presentación</button>
+        <button data-accion="txt-seg">🔁 Seguimiento / recordatorio</button>
+      </div>
+      <div id="txt-info" class="muted" style="margin-top:6px;font-weight:700">Selecciona un prospecto…</div>
+      <textarea id="txt-out" rows="8" placeholder="Aquí aparecerá tu texto…" style="width:100%;margin-top:12px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button data-accion="txt-copiar">📋 Copiar</button>
+        <a id="txt-wa" class="btn hidden" target="_blank" rel="noopener">Abrir en WhatsApp ↗</a>
+      </div>
+
+      <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
+        <h3 style="margin:0 0 4px">💬 Asistente de respuestas</h3>
+        <p class="sub">Pega el mensaje que te escribió el cliente y genera una respuesta sugerida con la oferta.</p>
+        <textarea id="resp-in" rows="3" placeholder="Mensaje entrante del cliente…" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+        <div class="row" style="margin-top:10px"><button data-accion="resp-generar">✨ Generar respuesta</button></div>
+        <textarea id="resp-out" rows="8" placeholder="Respuesta sugerida…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button data-accion="resp-copiar">📋 Copiar</button>
+          <a id="resp-wa" class="btn hidden" target="_blank" rel="noopener">Abrir en WhatsApp ↗</a>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
+        <h3 style="margin:0 0 4px">🧾 Cotizador</h3>
+        <p class="sub">Genera la cotización con desglose (landing / catálogo / e-commerce). Precios configurables en .env.</p>
+        <div class="row">
+          <select id="cot-tipo" style="min-width:200px">
+            <option value="landing">Landing de presentación</option>
+            <option value="catalogo" selected>Catálogo en línea + WhatsApp</option>
+            <option value="ecommerce">Tienda en línea con pagos</option>
+          </select>
+          <input type="number" id="cot-productos" placeholder="Nº productos" min="0" value="0" style="width:130px">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600"><input type="checkbox" id="cot-mant" checked> Mantenimiento mensual</label>
+          <button data-accion="cot-generar">🧾 Generar cotización</button>
+        </div>
+        <textarea id="cot-out" rows="9" placeholder="Cotización…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button data-accion="cot-copiar">📋 Copiar</button>
+          <button data-accion="cot-pdf">📄 Descargar PDF</button>
+          <span class="muted" id="cot-info"></span>
+        </div>
+      </div>
+    </div>
   </section>
 </div>
 
@@ -259,8 +272,6 @@ function badg(e){return '<span class="badge b-'+(e||'nuevo')+'">'+(e||'nuevo')+'
 function waLink(tel,msg){return 'https://wa.me/'+tel.replace(/\D/g,'')+'?text='+encodeURIComponent(msg);}
 function copDe(id){const c=COPS[id];return c?c.copy_whatsapp:'';}
 function aviso(msg,tipo){const el=$('#aviso');el.textContent=msg;el.className='aviso'+(tipo==='err'?' av-err':'');}
-
-// Botones de acción según el estado (el flujo real: enviar → el negocio responde).
 function acciones(p){
   const est=p.estado||'nuevo';
   const b=(label,accion,extra)=>'<button data-accion="'+accion+'" data-id="'+p.id+'"'+(extra?' data-estado="'+extra+'"':'')+'>'+label+'</button> ';
@@ -272,6 +283,22 @@ function acciones(p){
   if(est==='cliente') return b('↩ Reabrir','estado','nuevo');
   return '';
 }
+
+/* ---------- Navegación entre páginas (sidebar) ---------- */
+const TITULOS={dashboard:'Dashboard',prospectos:'Prospectos',herramientas:'Herramientas'};
+document.querySelectorAll('.side-nav a[data-pantalla]').forEach(a=>{
+  a.addEventListener('click',(e)=>{
+    e.preventDefault();
+    const p=a.dataset.pantalla;
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('activa'));
+    const scr=document.getElementById('scr-'+p);
+    if(scr) scr.classList.add('activa');
+    document.querySelectorAll('.side-nav a').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    $('#page-title').textContent=TITULOS[p]||'Dashboard';
+    window.scrollTo(0,0);
+  });
+});
 
 async function loadStats(t){
   const s=$('#stats'); s.innerHTML='';
@@ -296,10 +323,9 @@ async function cargarFotos(id){
 async function loadLote(){
   const r=await api('/api/prospectos?estado=en_cola');
   const box=$('#lote-list');
-  if(!r.prospectos.length){ box.innerHTML='<div class="empty">Sin lote preparado. Pulsa "Preparar lote" arriba.</div>'; return; }
+  if(!r.prospectos.length){ box.innerHTML='<div class="empty">Sin lote preparado. Ve a Dashboard → Preparar lote.</div>'; return; }
   box.innerHTML=r.prospectos.map(p=>{
     const c=cColor(p.color_accent);
-    const wa=waLink(p.whatsapp,copDe(p.id)||('Hola '+p.nombre_negocio+', vi su sitio web y quiero información.'));
     return '<div class="p-card" style="border-left:3px solid '+c+'">'+
       '<div class="p-top">'+
         '<span class="p-ava" style="background:linear-gradient(135deg,'+c+',color-mix(in srgb,'+c+' 70%,#0f172a))">'+p.nombre_negocio.charAt(0)+'</span>'+
@@ -327,8 +353,7 @@ async function cargarTabla(){
       return '<tr>'+
         '<td><span class="t-name"><span class="t-dot" style="background:'+c+'"></span>'+p.nombre_negocio+'</span></td>'+
         '<td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+p.whatsapp+'</td>'+
-        '<td>'+
-        acciones(p)+
+        '<td>'+acciones(p)+
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo</button> '+
         '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a>'+
         '</td></tr>';
@@ -345,7 +370,6 @@ async function refrescar(){
   loadLote(); cargarTabla(); poblarSelect();
 }
 
-// Select del generador de textos
 let PROS={};
 function prosTel(id){ return PROS[id]||''; }
 async function poblarSelect(){
@@ -363,7 +387,6 @@ function mostrarInfoSel(){
   const opt=sel.options[sel.selectedIndex];
   const id=sel.value;
   info.textContent=opt?('Seleccionado: '+opt.text+' · Tel: '+prosTel(id)):'Selecciona un prospecto';
-  // resaltar para que verifiques antes de generar
   info.style.color= id? '#0d9488':'#b45309';
 }
 $('#txt-prospecto').addEventListener('change', mostrarInfoSel);
@@ -395,7 +418,7 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='scrape'){
     aviso('⏳ Scrapeando CAMCHI… (2-3 min)');
     await api('/api/scrape',{method:'POST'});
-    aviso('✓ Scrapeo CAMCHI terminado. Filtra por "Nuevos".');
+    aviso('✓ Scrapeo CAMCHI terminado. Ve a Prospectos y filtra por "Nuevos".');
     refrescar();
   }
   else if(accion==='gmaps'){
@@ -416,7 +439,6 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='estado'){ estado(id,est); }
   else if(accion==='foto'){ window.open(b.dataset.src); }
   else if(accion==='prototipo'){
-    // Abrir la pestaña YA (gesto del clic, evita el bloqueo de popups) y navegarla al terminar.
     const win=window.open('','_blank');
     const abrir=()=>{ if(win){ win.location='/prototipo/'+id+'/'; } else { window.open('/prototipo/'+id+'/','_blank'); } };
     const check=await fetch('/prototipo/'+id+'/');
@@ -436,8 +458,7 @@ document.addEventListener('click', async (ev)=>{
     if(r.ok){
       $('#txt-out').value=r.texto;
       aviso(accion==='txt-email'?'✓ Email listo — cópialo y envíalo.':'✓ Seguimiento listo.');
-      const wa=waLink(prosTel(pid),r.texto);
-      const link=$('#txt-wa'); link.href=wa; link.classList.remove('hidden');
+      const link=$('#txt-wa'); link.href=waLink(prosTel(pid),r.texto); link.classList.remove('hidden');
     } else aviso('Error al generar','err');
   }
   else if(accion==='txt-copiar'){
