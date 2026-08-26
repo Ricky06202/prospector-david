@@ -244,7 +244,7 @@ async function loadLote(){
         '<button class="wa" data-accion="enviar" data-id="'+p.id+'">✓ Marcar enviado</button>'+
         '<a class="btn" target="_blank" rel="noopener" href="'+wa+'">WhatsApp ↗</a>'+
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo ↗</button>'+
-        '<a class="btn" href="/api/prospectos/'+p.id+'/descargar">Fotos ⬇</a>'+
+        '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a>'+
         '<button class="ghost" data-accion="estado" data-id="'+p.id+'" data-estado="no_interesado">No interesado</button>'+
         '<button class="ghost" data-accion="estado" data-id="'+p.id+'" data-estado="reagendar">Reagendar</button>'+
       '</div></div>';
@@ -264,7 +264,7 @@ async function cargarTabla(){
         '<td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+p.whatsapp+'</td>'+
         '<td>'+
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo</button> '+
-        '<a class="btn" href="/api/prospectos/'+p.id+'/descargar">Fotos ⬇</a> '+
+        '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a> '+
         (p.estado!=='enviado'?'<button data-accion="enviar" data-id="'+p.id+'">Enviado</button> ':'')+
         (p.estado==='enviado'||p.estado==='no_interesado'?'':'<button data-accion="estado" data-id="'+p.id+'" data-estado="no_interesado">No</button>')+
         '</td></tr>';

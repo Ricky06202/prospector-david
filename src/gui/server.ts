@@ -175,6 +175,41 @@ app.get("/fotos/*", async (c) => {
   }
 });
 
+// Descarga COMPLETA de un prospecto: datos.json + landing + fotos (para seguir en local).
+app.get("/api/prospectos/:id/descargar-todo", async (c) => {
+  const id = c.req.param("id");
+  const zip = new JSZip();
+
+  const lista = await cargarProspectos();
+  const p = lista.find((x) => x.id === id);
+  if (p) zip.file(`${id}/datos.json`, JSON.stringify(p, null, 2));
+
+  const fotosDir = join(ROOT, "output", "screenshots", id);
+  try {
+    for (const f of (await readdir(fotosDir)).filter((x) => x.endsWith(".png"))) {
+      zip.file(`${id}/fotos/${f}`, await readFile(join(fotosDir, f)));
+    }
+  } catch { /* sin fotos */ }
+
+  const landDir = join(DIST, id);
+  try {
+    const addDir = async (dir: string, prefix: string) => {
+      for (const e of await readdir(dir, { withFileTypes: true })) {
+        const full = join(dir, e.name);
+        if (e.isDirectory()) await addDir(full, `${prefix}/${e.name}`);
+        else zip.file(`${prefix}/${e.name}`, await readFile(full));
+      }
+    };
+    await addDir(landDir, `${id}/landing`);
+  } catch { /* sin landing */ }
+
+  const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  return c.body(buf, 200, {
+    "Content-Type": "application/zip",
+    "Content-Disposition": `attachment; filename="${id}_completo.zip"`,
+  });
+});
+
 // Descarga las fotos de un prospecto en un .zip (sin SSH).
 app.get("/api/prospectos/:id/descargar", async (c) => {
   const id = c.req.param("id");
