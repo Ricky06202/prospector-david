@@ -24,8 +24,9 @@ import {
   ROOT,
 } from "../lib/prospectos-io.ts";
 import { generarEmail, generarSeguimiento, generarRespuesta } from "../envio/deepseek.ts";
-import { PRECIOS, cotizar, textoCotizacion } from "../lib/precios.ts";
+import { PRECIOS, cotizar, textoCotizacion, htmlCotizacion } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
+import { launch } from "puppeteer-core";
 import { escribirStatus, leerStatus } from "../lib/pipeline-status.ts";
 import { DASHBOARD } from "./dashboard.ts";
 
@@ -160,6 +161,38 @@ app.post("/api/cotizador", async (c) => {
   const nombre = p ? p.nombre_negocio : "Negocio";
   const cot = cotizar(tipo, productos, mantenimiento);
   return c.json({ ok: true, cotizacion: cot, texto: textoCotizacion(nombre, tipo, productos, mantenimiento) });
+});
+
+// Cotización en PDF (renderizada con Chromium).
+app.post("/api/cotizador/pdf", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const id = String(body.id || "");
+  const tipo = String(body.tipo || "landing") as TipoProyecto;
+  const productos = Math.max(0, Number(body.productos) || 0);
+  const mantenimiento = Boolean(body.mantenimiento);
+  const lista = await cargarProspectos();
+  const p = lista.find((x) => x.id === id);
+  const nombre = p ? p.nombre_negocio : "Negocio";
+  const fecha = new Date().toLocaleDateString("es-PA", { day: "2-digit", month: "long", year: "numeric" });
+
+  const browser = await launch({
+    executablePath: process.env.CHROMIUM_PATH || "/nix/store/rxf83sv2x0ja1hi6vdli6ijll5v15x9j-chromium-151.0.7922.173/bin/chromium",
+    headless: true,
+    args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+  });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(htmlCotizacion(nombre, tipo, productos, mantenimiento, fecha), { waitUntil: "networkidle0" });
+    const pdf = await page.pdf({ format: "A4", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } });
+    await browser.close();
+    return c.body(pdf, 200, {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="cotizacion_${id || "prospecto"}.pdf"`,
+    });
+  } catch (e) {
+    await browser.close().catch(() => {});
+    return c.json({ ok: false, error: String(e) }, 500);
+  }
 });
 
 // Asistente de respuestas: sugerencia de respuesta al mensaje entrante de un cliente.

@@ -206,6 +206,7 @@ tbody tr:hover{background:#f8fafc}
       <textarea id="cot-out" rows="9" placeholder="Cotización…" style="width:100%;margin-top:10px;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
       <div class="row" style="margin-top:10px">
         <button data-accion="cot-copiar">📋 Copiar</button>
+        <button data-accion="cot-pdf">📄 Descargar PDF</button>
         <span class="muted" id="cot-info"></span>
       </div>
     </div>
@@ -476,6 +477,22 @@ document.addEventListener('click', async (ev)=>{
     const v=$('#cot-out').value;
     if(v){ await navigator.clipboard.writeText(v); aviso('✓ Cotización copiada'); }
     else aviso('Primero genera una cotización','err');
+  }
+  else if(accion==='cot-pdf'){
+    const pid=$('#txt-prospecto').value;
+    if(!pid){ aviso('Selecciona un prospecto','err'); return; }
+    const tipo=$('#cot-tipo').value, productos=+$('#cot-productos').value||0, mant=$('#cot-mant').checked;
+    aviso('⏳ Generando PDF…');
+    const r=await fetch('/api/cotizador/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,mantenimiento:mant})});
+    if(r.ok){
+      const blob=await r.blob();
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='cotizacion_'+pid+'.pdf';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      aviso('✓ PDF descargado');
+    } else aviso('Error al generar el PDF','err');
   }
 });
 
