@@ -210,7 +210,9 @@ tbody tr:hover{background:#f8fafc}
         <span class="muted" id="cot-info"></span>
       </div>
     </div>
-  </section>
+
+    <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
+      <h3 style="margin:0 0 4px">💬 Asistente de respuestas</h3>
       <p class="sub">Pega el mensaje que te escribió el cliente y genera una respuesta sugerida con la oferta.</p>
       <textarea id="resp-in" rows="3" placeholder="Mensaje entrante del cliente…" style="width:100%;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
       <div class="row" style="margin-top:10px">
