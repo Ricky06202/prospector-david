@@ -405,7 +405,9 @@ function filtrarLista(){
 }
 $('#txt-buscar').addEventListener('focus',filtrarLista);
 $('#txt-buscar').addEventListener('input',filtrarLista);
-$('#txt-lista').addEventListener('click',(e)=>{
+$('#txt-buscar').addEventListener('blur',()=>setTimeout(()=>$('#txt-lista').classList.add('hidden'),150));
+$('#txt-lista').addEventListener('mousedown',(e)=>{
+  e.preventDefault();
   const it=e.target.closest('.cb-item');
   if(!it) return;
   const id=it.dataset.id;

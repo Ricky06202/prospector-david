@@ -79,7 +79,7 @@ export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, produc
     .total-box{background:#0d9488;color:#fff;border-radius:14px;padding:16px 24px;margin:20px 0;display:flex;justify-content:space-between;align-items:center}
     .total-box .lbl{font-size:11px;color:#ccfbf1;text-transform:uppercase;letter-spacing:.1em}
     .total-box .val{font-size:32px;font-weight:800;letter-spacing:-.02em}
-    .total-box .nota{font-size:11px;color:#ccfbf1}
+    .total-box .nota{font-size:11px;color:#ccfbf1;background:transparent;border:none;padding:0;margin:0}
     table{width:100%;border-collapse:collapse;font-size:14px}
     th{text-align:left;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px;border-bottom:1px solid #e2e8f0}
     th.m{text-align:right}
