@@ -330,13 +330,16 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='estado'){ estado(id,est); }
   else if(accion==='foto'){ window.open(b.dataset.src); }
   else if(accion==='prototipo'){
+    // Abrir la pestaña YA (gesto del clic, evita el bloqueo de popups) y navegarla al terminar.
+    const win=window.open('','_blank');
+    const abrir=()=>{ if(win){ win.location='/prototipo/'+id+'/'; } else { window.open('/prototipo/'+id+'/','_blank'); } };
     const check=await fetch('/prototipo/'+id+'/');
-    if(check.ok){ window.open('/prototipo/'+id+'/','_blank'); }
+    if(check.ok){ abrir(); }
     else{
       aviso('⏳ Regenerando prototipo y fotos de '+id+'… (~15s)');
       await api('/api/prospectos/'+id+'/prototipo',{method:'POST'});
       aviso('✓ Prototipo y fotos listos');
-      window.open('/prototipo/'+id+'/','_blank');
+      abrir();
     }
   }
 });
