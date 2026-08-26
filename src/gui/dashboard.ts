@@ -164,6 +164,7 @@ tbody tr:hover{background:#f8fafc}
     <div class="row">
       <button data-accion="scrape">↻ Scrapear CAMCHI</button>
       <button data-accion="gmaps">↻ Scrapear Google Maps</button>
+      <button data-accion="places">☆ Scrapear Google Places</button>
     </div>
   </section>
 
@@ -314,6 +315,12 @@ document.addEventListener('click', async (ev)=>{
     aviso('⏳ Scrapeando Google Maps… (lento, con pausas anti-captcha)');
     await api('/api/gmaps',{method:'POST'});
     aviso('✓ Scrapeo Google Maps terminado.');
+    refrescar();
+  }
+  else if(accion==='places'){
+    aviso('⏳ Scrapeando Google Places… (API oficial, rápido)');
+    await api('/api/places',{method:'POST'});
+    aviso('✓ Scrapeo Google Places terminado.');
     refrescar();
   }
   else if(accion==='recargar'){ aviso('↻ Recargado'); refrescar(); }

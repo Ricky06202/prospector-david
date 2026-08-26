@@ -125,6 +125,11 @@ app.post("/api/gmaps", async (c) => {
   return c.json({ ok: true });
 });
 
+app.post("/api/places", async (c) => {
+  await ejecutarScript("places");
+  return c.json({ ok: true });
+});
+
 app.get("/api/copys", async (c) => {
   try {
     const d = JSON.parse(await readFile(join(ROOT, "output", "lista_envio.json"), "utf-8"));
@@ -198,7 +203,8 @@ const MIME: Record<string, string> = {
   ".webp": "image/webp", ".woff2": "font/woff2", ".json": "application/json",
 };
 app.get("/prototipo/*", async (c) => {
-  const p = c.req.path.replace("/prototipo/", "");
+  let p = c.req.path.replace("/prototipo/", "");
+  if (p.endsWith("/")) p += "index.html"; // la landing vive en <id>/index.html
   const file = join(DIST, p);
   if (!file.startsWith(DIST)) return c.body("no", 400);
   try {
