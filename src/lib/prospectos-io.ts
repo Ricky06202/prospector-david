@@ -65,7 +65,8 @@ export async function guardarLote(ids: string[]): Promise<void> {
 export async function prepararLote(n: number): Promise<{ elegidos: Prospecto[]; enCola: Prospecto[]; nuevos: number }> {
   const lista = await cargarProspectos();
   const enCola = lista.filter((p) => p.estado === "en_cola");
-  const pendientes = lista.filter((p) => !p.estado || p.estado === "nuevo");
+  // Disponibles: nuevos + reagendados (los pospuestos vuelven a salir en lotes futuros).
+  const pendientes = lista.filter((p) => !p.estado || p.estado === "nuevo" || p.estado === "reagendar");
 
   // Si ya hay un lote activo, se mantiene (idempotente). Si no, se arma uno nuevo.
   const ids = enCola.map((p) => p.id);

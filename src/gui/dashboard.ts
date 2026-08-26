@@ -266,7 +266,8 @@ async function cargarTabla(){
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo</button> '+
         '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a> '+
         (p.estado!=='enviado'?'<button data-accion="enviar" data-id="'+p.id+'">Enviado</button> ':'')+
-        (p.estado==='enviado'||p.estado==='no_interesado'?'':'<button data-accion="estado" data-id="'+p.id+'" data-estado="no_interesado">No</button>')+
+        (p.estado==='enviado'||p.estado==='no_interesado'?'':'<button data-accion="estado" data-id="'+p.id+'" data-estado="reagendar">Reagendar</button> ')+
+        (p.estado==='enviado'?'':'<button data-accion="estado" data-id="'+p.id+'" data-estado="no_interesado">No</button>')+
         '</td></tr>';
     }).join('')+'</tbody></table>'
   ):('<div class="empty">No hay prospectos con ese filtro.</div>');
