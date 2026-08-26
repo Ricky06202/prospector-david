@@ -150,19 +150,19 @@ app.get("/api/copys", async (c) => {
 });
 
 // Cotizador: precios configurables y generación de cotizaciones con desglose.
-app.get("/api/cotizador/precios", (c) => c.json({ ok: true, precios: PRECIOS }));
+app.get("/api/cotizador/precios", (c) => c.json({ ok: true, precios: PRECIOS, planes: PLANES }));
 
 app.post("/api/cotizador", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const id = String(body.id || "");
   const tipo = String(body.tipo || "landing") as TipoProyecto;
   const productos = Math.max(0, Number(body.productos) || 0);
-  const mantenimiento = Boolean(body.mantenimiento);
+  const plan = String(body.plan || "sin");
   const lista = await cargarProspectos();
   const p = lista.find((x) => x.id === id);
   const nombre = p ? p.nombre_negocio : "Negocio";
-  const cot = cotizar(tipo, productos, mantenimiento);
-  return c.json({ ok: true, cotizacion: cot, texto: textoCotizacion(nombre, tipo, productos, mantenimiento) });
+  const cot = cotizar(tipo, productos, plan);
+  return c.json({ ok: true, cotizacion: cot, texto: textoCotizacion(nombre, tipo, productos, plan) });
 });
 
 // Cotización en PDF (renderizada con Chromium).
@@ -171,7 +171,7 @@ app.post("/api/cotizador/pdf", async (c) => {
   const id = String(body.id || "");
   const tipo = String(body.tipo || "landing") as TipoProyecto;
   const productos = Math.max(0, Number(body.productos) || 0);
-  const mantenimiento = Boolean(body.mantenimiento);
+  const plan = String(body.plan || "sin");
   const lista = await cargarProspectos();
   const p = lista.find((x) => x.id === id);
   const nombre = p ? p.nombre_negocio : "Negocio";
@@ -184,7 +184,7 @@ app.post("/api/cotizador/pdf", async (c) => {
   });
   try {
     const page = await browser.newPage();
-    await page.setContent(htmlCotizacion(nombre, tipo, productos, mantenimiento, fecha), { waitUntil: "networkidle0" });
+    await page.setContent(htmlCotizacion(nombre, tipo, productos, plan, fecha), { waitUntil: "networkidle0" });
     const pdf = await page.pdf({ format: "A4", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } });
     await browser.close();
     return c.body(pdf, 200, {

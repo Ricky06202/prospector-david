@@ -1,12 +1,5 @@
-import { PRECIOS } from "./precios.ts";
-
-export type PlanMantenimiento = "mensual" | "trimestral" | "semestral";
-
-export const PLANES: Record<PlanMantenimiento, { dias: number; precio: number; label: string }> = {
-  mensual: { dias: 30, precio: PRECIOS.mantenimiento, label: "Mensual" },
-  trimestral: { dias: 90, precio: PRECIOS.mantenimientoTrimestral, label: "Trimestral" },
-  semestral: { dias: 180, precio: PRECIOS.mantenimientoSemestral, label: "Semestral" },
-};
+import { PLANES, type PlanMantenimiento } from "./precios.ts";
+export { PLANES, PlanMantenimiento };
 
 export function sumaDias(fechaISO: string, dias: number): string {
   const d = new Date(fechaISO);

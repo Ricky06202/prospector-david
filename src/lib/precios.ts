@@ -14,63 +14,80 @@ export const PRECIOS = {
   mantenimientoSemestral: Number(process.env.PRECIO_MANT_SEMESTRAL || 100),
 };
 
-export type TipoProyecto = "landing" | "catalogo" | "ecommerce";
+export type PlanMantenimiento = "mensual" | "trimestral" | "semestral";
+export type TipoProyecto = "landing" | "catalogo" | "ecommerce" | "mantenimiento";
+
+export const PLANES: Record<PlanMantenimiento, { dias: number; precio: number; label: string }> = {
+  mensual: { dias: 30, precio: PRECIOS.mantenimiento, label: "Mensual" },
+  trimestral: { dias: 90, precio: PRECIOS.mantenimientoTrimestral, label: "Trimestral" },
+  semestral: { dias: 180, precio: PRECIOS.mantenimientoSemestral, label: "Semestral" },
+};
 
 export interface Cotizacion {
   tipo: TipoProyecto;
   tipoLabel: string;
-  base: number;
+  baseProyecto: number;
   productos: number;
-  porProducto: number;
-  mantenimiento: number;
+  plan: string; // "sin" | PlanMantenimiento
+  planInfo: { label: string; precio: number; dias: number } | null;
   total: number;
 }
 
-export function cotizar(tipo: TipoProyecto, productos = 0, conMantenimiento = false): Cotizacion {
-  let base: number;
+/** Calcula la cotización: proyecto + plan de mantenimiento (si lo hay) = TOTAL INICIAL. */
+export function cotizar(tipo: TipoProyecto, productos = 0, plan = "sin"): Cotizacion {
+  let baseProyecto = 0;
   let tipoLabel: string;
   if (tipo === "landing") {
-    base = PRECIOS.landing;
+    baseProyecto = PRECIOS.landing;
     tipoLabel = "Landing de presentación";
   } else if (tipo === "catalogo") {
-    base = PRECIOS.catalogoBase + productos * PRECIOS.porProducto;
+    baseProyecto = PRECIOS.catalogoBase + productos * PRECIOS.porProducto;
     tipoLabel = "Catálogo en línea + pedidos por WhatsApp";
-  } else {
-    base = PRECIOS.ecommerce;
+  } else if (tipo === "ecommerce") {
+    baseProyecto = PRECIOS.ecommerce;
     tipoLabel = "Tienda en línea con pagos";
+  } else {
+    tipoLabel = "Mantenimiento recurrente";
   }
-  return {
-    tipo,
-    tipoLabel,
-    base,
-    productos,
-    porProducto: PRECIOS.porProducto,
-    mantenimiento: conMantenimiento ? PRECIOS.mantenimiento : 0,
-    total: base,
-  };
+  const planInfo = plan !== "sin" && PLANES[plan] ? PLANES[plan] : null;
+  const total = baseProyecto + (planInfo ? planInfo.precio : 0);
+  return { tipo, tipoLabel, baseProyecto, productos, porProducto: PRECIOS.porProducto, plan, planInfo, total };
 }
 
 /** HTML de cotización con marca (para el PDF) — limpio y profesional. */
-export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, productos: number, conMantenimiento: boolean, fecha: string): string {
-  const c = cotizar(tipo, productos, conMantenimiento);
-  const fila = (nombre: string, monto: number, destacado = false) =>
-    `<tr${destacado ? ' style="background:#f0fdfa"' : ""}><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">B/. ${monto.toFixed(2)}</td></tr>`;
+export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, productos: number, plan: string, fecha: string): string {
+  const c = cotizar(tipo, productos, plan);
+  const fila = (nombre: string, monto: number) =>
+    `<tr><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">B/. ${monto.toFixed(2)}</td></tr>`;
 
-  const filas =
-    tipo === "catalogo"
-      ? fila("Base del catálogo", PRECIOS.catalogoBase) +
-        fila(`Publicación de ${productos} productos`, productos * PRECIOS.porProducto)
-      : fila("Proyecto", c.base);
+  const filas = tipo === "catalogo"
+    ? fila("Base del catálogo", PRECIOS.catalogoBase) +
+      fila(`Publicación de ${productos} productos`, productos * PRECIOS.porProducto)
+    : tipo !== "mantenimiento"
+      ? fila("Proyecto", c.baseProyecto)
+      : "";
+  const filaMant = c.planInfo ? fila(`Mantenimiento ${c.planInfo.label.toLowerCase()} — cubre ${c.planInfo.dias} días`, c.planInfo.precio) : "";
 
-  const mantTexto = `<div style="margin-top:16px;padding:14px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#78350f;line-height:1.6">
-    <b>${conMantenimiento ? "Mantenimiento mensual incluido" : "Mantenimiento mensual (opcional)"} · B/. ${PRECIOS.mantenimiento.toFixed(2)}/mes — ¿qué incluye?</b>
-    <ul style="margin:8px 0 0;padding-left:18px">
-      <li>Actualización de contenido: precios, fotos, productos y promociones cuando lo necesites.</li>
-      <li>Soporte técnico directo por WhatsApp.</li>
-      <li>Respaldo y seguridad de tu página.</li>
-      <li>Optimización de velocidad para que cargue rápido.</li>
-    </ul>
-  </div>`;
+  const mantBloque = c.planInfo
+    ? `<div style="margin-top:16px;padding:14px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#78350f;line-height:1.6">
+        <b>Mantenimiento ${c.planInfo.label.toLowerCase()} · B/. ${c.planInfo.precio.toFixed(2)} — este pago cubre ${c.planInfo.dias} días de mantenimiento.</b>
+        <ul style="margin:8px 0 0;padding-left:18px">
+          <li>Actualización de contenido: precios, fotos, productos y promociones cuando lo necesites.</li>
+          <li>Soporte técnico directo por WhatsApp.</li>
+          <li>Respaldo y seguridad de tu página.</li>
+          <li>Optimización de velocidad para que cargue rápido.</li>
+        </ul>
+      </div>`
+    : tipo !== "mantenimiento"
+      ? `<div style="margin-top:16px;padding:14px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:12px;color:#134e4a;line-height:1.7">
+          <b>Mantenimiento opcional</b> (contenido actualizado, soporte directo, respaldo y optimización):
+          <div style="display:flex;gap:18px;margin-top:8px;flex-wrap:wrap">
+            <span><b style="color:#0d9488">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)}</span>
+            <span><b style="color:#0d9488">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)}</span>
+            <span><b style="color:#0d9488">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)}</span>
+          </div>
+        </div>`
+      : "";
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
     *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
@@ -104,13 +121,13 @@ export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, produc
         <div class="fecha">${fecha}</div>
       </div>
       <div class="total-box">
-        <div><div class="lbl">Total · pago único</div><div class="nota">${c.tipoLabel}</div></div>
+        <div><div class="lbl">Total inicial · ${c.planInfo ? `incluye mantenimiento ${c.planInfo.label.toLowerCase()} (${c.planInfo.dias} días)` : "pago único"}</div><div class="nota">${c.tipoLabel}${c.planInfo ? " + mantenimiento" : ""}</div></div>
         <div class="val">B/. ${c.total.toFixed(2)}</div>
       </div>
       <table><thead><tr><th>Concepto</th><th class="m">Monto</th></tr></thead><tbody>
-        ${filas}
+        ${filas}${filaMant}
       </tbody></table>
-      ${mantTexto}
+      ${mantBloque}
       <div class="nota"><b>Incluye:</b> dominio propio, alojamiento, diseño a medida y botón directo de WhatsApp. Plazos y detalles se confirman en una llamada breve.</div>
       <div class="foot"><span>Cotización sin compromiso · Válida por 15 días</span><span>Ricardo Sanjur · WhatsApp 6510-4147</span></div>
     </div>
@@ -122,9 +139,9 @@ export function textoCotizacion(
   nombreNegocio: string,
   tipo: TipoProyecto,
   productos: number,
-  conMantenimiento: boolean
+  plan: string
 ): string {
-  const c = cotizar(tipo, productos, conMantenimiento);
+  const c = cotizar(tipo, productos, plan);
   const lineas: string[] = [
     `📋 Cotización · ${nombreNegocio}`,
     ``,
@@ -132,19 +149,32 @@ export function textoCotizacion(
   ];
   if (tipo === "catalogo") {
     lineas.push(`Base del catálogo: B/. ${PRECIOS.catalogoBase.toFixed(2)}`);
-    lineas.push(`Productos a publicar (${productos} × B/. ${PRECIOS.porProducto.toFixed(2)}): B/. ${(productos * PRECIOS.porProducto).toFixed(2)}`);
-  } else {
-    lineas.push(`Valor base: B/. ${c.base.toFixed(2)}`);
+    lineas.push(`Productos (${productos} × B/. ${PRECIOS.porProducto.toFixed(2)}): B/. ${(productos * PRECIOS.porProducto).toFixed(2)}`);
+  } else if (tipo !== "mantenimiento") {
+    lineas.push(`Valor del proyecto: B/. ${c.baseProyecto.toFixed(2)}`);
+  }
+  if (c.planInfo) {
+    lineas.push(`Mantenimiento ${c.planInfo.label.toLowerCase()} — este pago cubre ${c.planInfo.dias} días: B/. ${c.planInfo.precio.toFixed(2)}`);
   }
   lineas.push(`————————————`);
-  lineas.push(`TOTAL: B/. ${c.total.toFixed(2)} (pago único)`);
+  lineas.push(`TOTAL INICIAL: B/. ${c.total.toFixed(2)}`);
+  if (c.planInfo) {
+    if (tipo === "mantenimiento") {
+      lineas.push(`(${c.planInfo.label} por ${c.planInfo.dias} días: B/. ${c.planInfo.precio.toFixed(2)})`);
+    } else {
+      lineas.push(`(Proyecto B/. ${c.baseProyecto.toFixed(2)} + mantenimiento ${c.planInfo.label.toLowerCase()} por ${c.planInfo.dias} días B/. ${c.planInfo.precio.toFixed(2)})`);
+    }
+    lineas.push(`Renovación del mantenimiento cada ${c.planInfo.dias} días: B/. ${c.planInfo.precio.toFixed(2)}`);
+  }
   lineas.push(``);
-  lineas.push(`Incluye: dominio propio, alojamiento, diseño a medida y botón de WhatsApp.`);
-  if (conMantenimiento) {
-    lineas.push(`Mantenimiento mensual: B/. ${c.mantenimiento.toFixed(2)}/mes`);
-    lineas.push(`  › Incluye: contenido actualizado (precios, fotos, productos), soporte directo, respaldo y optimización.`);
-  } else {
-    lineas.push(`Opcional: mantenimiento mensual por B/. ${c.mantenimiento.toFixed(2)}/mes (contenido actualizado, soporte directo, respaldo y optimización).`);
+  if (tipo !== "mantenimiento") {
+    lineas.push(`Incluye: dominio propio, alojamiento, diseño a medida y botón de WhatsApp.`);
+  }
+  if (c.planInfo) {
+    lineas.push(`Mantenimiento incluye: contenido actualizado, soporte directo, respaldo y optimización.`);
+  } else if (tipo !== "mantenimiento") {
+    lineas.push(`Mantenimiento opcional (contenido actualizado, soporte, respaldo y optimización):`);
+    lineas.push(`  › Mensual B/. ${PLANES.mensual.precio.toFixed(2)} · Trimestral B/. ${PLANES.trimestral.precio.toFixed(2)} · Semestral B/. ${PLANES.semestral.precio.toFixed(2)}`);
   }
   lineas.push(`Plazos y detalles se confirman en una llamada breve. ¡Saludos!`);
   return lineas.join("\n");

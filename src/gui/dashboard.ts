@@ -268,18 +268,24 @@ tbody tr:hover{background:#f8fafc}
         <h3 style="margin:0 0 4px">🧾 Cotizador</h3>
         <p class="sub">Genera la cotización con desglose (landing / catálogo / e-commerce). Precios configurables en .env.</p>
         <div class="row">
-          <select id="cot-tipo" style="min-width:200px">
+          <select id="cot-tipo" style="min-width:220px">
             <option value="landing">Landing de presentación</option>
-            <option value="catalogo" selected>Catálogo en línea + WhatsApp</option>
+            <option value="catalogo">Catálogo en línea + WhatsApp</option>
             <option value="ecommerce">Tienda en línea con pagos</option>
+            <option value="mantenimiento">Solo mantenimiento (renovación)</option>
           </select>
           <span id="cot-productos-wrap">
             <input type="number" id="cot-productos" placeholder="Nº productos" min="0" value="0" style="width:130px">
           </span>
-          <label style="display:flex;align-items:center;gap:6px;font-weight:600"><input type="checkbox" id="cot-mant" checked> Mantenimiento mensual</label>
+          <select id="cot-mant" style="min-width:170px">
+            <option value="sin" selected>Sin mantenimiento</option>
+            <option value="mensual">+ Mensual B/. 25</option>
+            <option value="trimestral">+ Trimestral B/. 60</option>
+            <option value="semestral">+ Semestral B/. 100</option>
+          </select>
           <button data-accion="cot-generar">🧾 Generar cotización</button>
         </div>
-        <p class="muted" style="margin:8px 0 0">Mantenimiento (B/. 25/mes) incluye: contenido actualizado cuando lo pidas (precios, fotos, productos), soporte directo, respaldo y optimización.</p>
+        <p class="muted" style="margin:8px 0 0">Mantenimiento incluye: contenido actualizado cuando lo pidas (precios, fotos, productos), soporte directo, respaldo y optimización. El TOTAL inicial suma el proyecto + el plan elegido.</p>
         <textarea id="cot-out" rows="9" placeholder="Cotización…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
         <div class="row" style="margin-top:10px">
           <button data-accion="cot-copiar">📋 Copiar</button>
@@ -496,8 +502,11 @@ function mostrarInfoSel(){
 
 // Cotizador: mostrar/ocultar el campo de productos según el tipo de proyecto.
 function cotToggle(){
-  const wrap=$('#cot-productos-wrap');
-  wrap.style.display=($('#cot-tipo').value==='catalogo')?'':'none';
+  const tipo=$('#cot-tipo').value;
+  $('#cot-productos-wrap').style.display=(tipo==='catalogo')?'':'none';
+  // Para "solo mantenimiento" se exige un plan (nunca "sin").
+  if(tipo==='mantenimiento' && $('#cot-mant').value==='sin') $('#cot-mant').value='mensual';
+  if(tipo!=='mantenimiento' && $('#cot-mant').value==='sin' && $('#cot-mant').options[0].selected===false && $('#cot-mant').value==='') $('#cot-mant').value='sin';
 }
 $('#cot-tipo').addEventListener('change', cotToggle);
 cotToggle();
