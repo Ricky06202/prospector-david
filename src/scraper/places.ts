@@ -12,7 +12,8 @@
  */
 import "dotenv/config";
 import { readFile, writeFile } from "node:fs/promises";
-import { dirname, join, fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Prospecto } from "../types.ts";
 import { normalizarTelefonoPA } from "../lib/telefono.ts";
 import { accentParaTipo } from "../lib/accent.ts";
