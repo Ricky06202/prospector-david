@@ -240,7 +240,9 @@ tbody tr:hover{background:#f8fafc}
             <option value="catalogo" selected>Catálogo en línea + WhatsApp</option>
             <option value="ecommerce">Tienda en línea con pagos</option>
           </select>
-          <input type="number" id="cot-productos" placeholder="Nº productos" min="0" value="0" style="width:130px">
+          <span id="cot-productos-wrap">
+            <input type="number" id="cot-productos" placeholder="Nº productos" min="0" value="0" style="width:130px">
+          </span>
           <label style="display:flex;align-items:center;gap:6px;font-weight:600"><input type="checkbox" id="cot-mant" checked> Mantenimiento mensual</label>
           <button data-accion="cot-generar">🧾 Generar cotización</button>
         </div>
@@ -390,6 +392,14 @@ function mostrarInfoSel(){
   info.style.color= id? '#0d9488':'#b45309';
 }
 $('#txt-prospecto').addEventListener('change', mostrarInfoSel);
+
+// Cotizador: mostrar/ocultar el campo de productos según el tipo de proyecto.
+function cotToggle(){
+  const wrap=$('#cot-productos-wrap');
+  wrap.style.display=($('#cot-tipo').value==='catalogo')?'':'none';
+}
+$('#cot-tipo').addEventListener('change', cotToggle);
+cotToggle();
 
 async function estado(id,e){ await api('/api/prospectos/'+id+'/estado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado:e})}); refrescar(); }
 async function enviar(id){ await estado(id,'enviado'); }
