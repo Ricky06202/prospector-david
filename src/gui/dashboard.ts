@@ -188,6 +188,20 @@ tbody tr:hover{background:#f8fafc}
       <button data-accion="txt-copiar">📋 Copiar</button>
       <a id="txt-wa" class="btn hidden" target="_blank" rel="noopener">Abrir en WhatsApp ↗</a>
     </div>
+
+    <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
+      <h3 style="margin:0 0 4px">💬 Asistente de respuestas</h3>
+      <p class="sub">Pega el mensaje que te escribió el cliente y genera una respuesta sugerida con la oferta.</p>
+      <textarea id="resp-in" rows="3" placeholder="Mensaje entrante del cliente…" style="width:100%;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button data-accion="resp-generar">✨ Generar respuesta</button>
+      </div>
+      <textarea id="resp-out" rows="8" placeholder="Respuesta sugerida…" style="width:100%;margin-top:10px;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button data-accion="resp-copiar">📋 Copiar</button>
+        <a id="resp-wa" class="btn hidden" target="_blank" rel="noopener">Abrir en WhatsApp ↗</a>
+      </div>
+    </div>
   </section>
 
   <section class="card">
@@ -397,6 +411,23 @@ document.addEventListener('click', async (ev)=>{
     const v=$('#txt-out').value;
     if(v){ await navigator.clipboard.writeText(v); aviso('✓ Copiado al portapapeles'); }
     else aviso('Primero genera un texto','err');
+  }
+  else if(accion==='resp-generar'){
+    const pid=$('#txt-prospecto').value, msg=$('#resp-in').value.trim();
+    if(!pid){ aviso('Selecciona un prospecto arriba','err'); return; }
+    if(!msg){ aviso('Pega primero el mensaje del cliente','err'); return; }
+    aviso('⏳ Generando respuesta…');
+    const r=await api('/api/respuesta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,mensaje:msg})});
+    if(r.ok){
+      $('#resp-out').value=r.texto;
+      aviso('✓ Respuesta lista.');
+      const link=$('#resp-wa'); link.href=waLink(prosTel(pid),r.texto); link.classList.remove('hidden');
+    } else aviso('Error al generar','err');
+  }
+  else if(accion==='resp-copiar'){
+    const v=$('#resp-out').value;
+    if(v){ await navigator.clipboard.writeText(v); aviso('✓ Copiado al portapapeles'); }
+    else aviso('Primero genera una respuesta','err');
   }
 });
 

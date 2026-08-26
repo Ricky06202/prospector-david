@@ -130,3 +130,18 @@ export async function generarSeguimiento(p: Prospecto): Promise<string> {
   const llmTxt = await llm(sist, `Negocio: ${p.nombre_negocio} (${p.tipo}).`);
   return llmTxt || seguimientoPlantilla(p);
 }
+
+/** Respuesta sugerida al mensaje entrante de un cliente (asistente de respuestas). */
+export async function generarRespuesta(p: Prospecto, mensajeCliente: string): Promise<string> {
+  const sist =
+    "Eres un asesor de ventas para un desarrollador web local de David, Chiriquí. El cliente es un negocio local que ya recibió una MUESTRA GRATIS de su futura página web. Escribe una RESPUESTA corta (máx 130 palabras), cálida y persuasiva, en español, sin placeholders ni corchetes. Debe: 1) agradecer y reconocer el mensaje del cliente; 2) presentar claramente la oferta: sitio completo por $300 único, con dominio propio, diseño a medida, botón de WhatsApp directo y 5 rondas de ajustes, más plan de mantenimiento opcional para mantenerlo actualizado; 3) proponer un siguiente paso concreto (llamada corta o mostrar la muestra con más detalle); 4) cerrar con cordialidad.";
+  const prompt = `Cliente: ${p.nombre_negocio} (${p.tipo}). Mensaje entrante del cliente: "${mensajeCliente}". Escribe la respuesta.`;
+  const llmTxt = await llm(sist, prompt);
+  return llmTxt || [
+    `¡Gracias por escribirnos! Claro, con gusto.`,
+    ``,
+    `En resumen: ya vieron la muestra gratis. El sitio completo incluye dominio propio, diseño a medida, botón de WhatsApp directo y 5 rondas de ajustes, por una inversión única de $300 (con plan de mantenimiento opcional para mantenerlo siempre al día).`,
+    ``,
+    `¿Qué les parece si agendamos una llamada corta para mostrarles la muestra con más detalle? Quedo atento. ¡Saludos!`,
+  ].join("\n");
+}

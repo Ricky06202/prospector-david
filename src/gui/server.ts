@@ -23,7 +23,7 @@ import {
   guardarLote,
   ROOT,
 } from "../lib/prospectos-io.ts";
-import { generarEmail, generarSeguimiento } from "../envio/deepseek.ts";
+import { generarEmail, generarSeguimiento, generarRespuesta } from "../envio/deepseek.ts";
 import { escribirStatus, leerStatus } from "../lib/pipeline-status.ts";
 import { DASHBOARD } from "./dashboard.ts";
 
@@ -142,6 +142,18 @@ app.get("/api/copys", async (c) => {
   } catch {
     return c.json({ ok: true, copys: [] });
   }
+});
+
+// Asistente de respuestas: sugerencia de respuesta al mensaje entrante de un cliente.
+app.post("/api/respuesta", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const id = String(body.id || "");
+  const mensaje = String(body.mensaje || "").slice(0, 2000);
+  const lista = await cargarProspectos();
+  const p = lista.find((x) => x.id === id);
+  if (!p) return c.json({ ok: false, error: "prospecto no encontrado" });
+  const texto = await generarRespuesta(p, mensaje);
+  return c.json({ ok: true, texto });
 });
 
 // Generador de textos: email de presentación o seguimiento para un prospecto.
