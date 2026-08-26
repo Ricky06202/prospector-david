@@ -93,8 +93,9 @@ input:focus,select:focus,button:focus{outline:2px solid rgba(13,148,136,.35);out
 .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;margin-left:auto}
 .badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
 .b-nuevo{background:#dbeafe;color:#1d4ed8}.b-en_cola{background:#fef3c7;color:#b45309}
-.b-enviado{background:#dcfce7;color:#15803d}.b-no_interesado{background:#fee2e2;color:#b91c1c}
-.b-reagendar{background:#ede9fe;color:#6d28d9}
+.b-enviado{background:#f1f5f9;color:#475569}.b-no_interesado{background:#fee2e2;color:#b91c1c}
+.b-reagendar{background:#ede9fe;color:#6d28d9}.b-interesado{background:#dcfce7;color:#059669}
+.b-cliente{background:#fef9c3;color:#a16207}
 .copy{white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:12px;margin:12px 0;color:#334155;line-height:1.5}
 .fotos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .fotos img{height:66px;border-radius:9px;border:1px solid var(--line);cursor:zoom-in;transition:.15s}
@@ -175,6 +176,21 @@ tbody tr:hover{background:#f8fafc}
   </section>
 
   <section class="card">
+    <h2>📧 Generador de textos</h2>
+    <p class="sub">Email de presentación para enviar por correo, o seguimiento corto para retomar a los que ya contactaste.</p>
+    <div class="row">
+      <select id="txt-prospecto" style="min-width:280px"></select>
+      <button data-accion="txt-email">📧 Email de presentación</button>
+      <button data-accion="txt-seg">🔁 Seguimiento / recordatorio</button>
+    </div>
+    <textarea id="txt-out" rows="8" placeholder="Aquí aparecerá tu texto…" style="width:100%;margin-top:12px;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button data-accion="txt-copiar">📋 Copiar</button>
+      <a id="txt-wa" class="btn hidden" target="_blank" rel="noopener">Abrir en WhatsApp ↗</a>
+    </div>
+  </section>
+
+  <section class="card">
     <h2>Todos los prospectos</h2>
     <p class="sub">Control total de tu base. El prototipo de cualquier prospecto se regenera solo si falta.</p>
     <div class="row" style="margin-bottom:14px">
@@ -199,20 +215,36 @@ function cColor(k){return COLOR[k]||'#0d9488';}
 const ICONS={nuevo:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M12 12H3M12 12h9"/></svg>',
   en_cola:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
   enviado:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
+  interesado:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 3.09L18.5 4l.41 3.09L22 9l-1.59 3.09L22 15l-3.09 1.41L18.5 19.5l-3.41-.91L12 22l-3.09-3.09-3.41.91L4.91 16.41 1.5 15l1.59-3.09L1.5 9l3.09-1.41L4.91 4.5l3.41.91L12 2Z"/></svg>',
+  cliente:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>',
   total:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>'};
-const KPICOL={nuevo:'#2563eb',en_cola:'#d97706',enviado:'#10b981',total:'#7c3aed'};
+const KPICOL={nuevo:'#2563eb',en_cola:'#d97706',enviado:'#94a3b8',interesado:'#059669',cliente:'#ca8a04'};
 function badg(e){return '<span class="badge b-'+(e||'nuevo')+'">'+(e||'nuevo')+'</span>';}
 function waLink(tel,msg){return 'https://wa.me/'+tel.replace(/\D/g,'')+'?text='+encodeURIComponent(msg);}
 function copDe(id){const c=COPS[id];return c?c.copy_whatsapp:'';}
 function aviso(msg,tipo){const el=$('#aviso');el.textContent=msg;el.className='aviso'+(tipo==='err'?' av-err':'');}
 
+// Botones de acción según el estado (el flujo real: enviar → el negocio responde).
+function acciones(p){
+  const est=p.estado||'nuevo';
+  const b=(label,accion,extra)=>'<button data-accion="'+accion+'" data-id="'+p.id+'"'+(extra?' data-estado="'+extra+'"':'')+'>'+label+'</button> ';
+  if(est==='en_cola') return b('✓ Enviado','enviar')+b('★ Interesado','estado','interesado')+b('Reagendar','estado','reagendar')+b('No','estado','no_interesado');
+  if(est==='enviado') return b('★ Interesado','estado','interesado')+b('Reagendar','estado','reagendar')+b('No','estado','no_interesado');
+  if(est==='interesado') return b('✓ Cerrar (Cliente)','estado','cliente')+b('No','estado','no_interesado');
+  if(est==='reagendar') return b('★ Interesado','estado','interesado')+b('No','estado','no_interesado');
+  if(est==='no_interesado') return b('↩ Reactivar','estado','nuevo');
+  if(est==='cliente') return b('↩ Reabrir','estado','nuevo');
+  return '';
+}
+
 async function loadStats(t){
   const s=$('#stats'); s.innerHTML='';
-  ['nuevo','en_cola','enviado','total'].forEach(k=>{
-    const c=KPICOL[k];
+  const orden=[['nuevo','Nuevos'],['en_cola','En cola'],['enviado','Enviados'],['interesado','★ Interesados'],['cliente','✓ Clientes']];
+  orden.forEach(([k,label])=>{
+    const c=KPICOL[k]||'#64748b';
     const d=document.createElement('div'); d.className='kpi';
-    d.innerHTML='<div class="kpi-ic" style="background:'+c+'1a;color:'+c+'">'+ICONS[k]+'</div>'+
-      '<div><b>'+t[k]+'</b><span>'+k.replace('_',' ')+'</span></div>';
+    d.innerHTML='<div class="kpi-ic" style="background:'+c+'1a;color:'+c+'">'+(ICONS[k]||ICONS.total)+'</div>'+
+      '<div><b>'+(t[k]||0)+'</b><span>'+label+'</span></div>';
     s.appendChild(d);
   });
 }
@@ -241,12 +273,9 @@ async function loadLote(){
       (copDe(p.id)?'<div class="copy">'+copDe(p.id)+'</div>':'')+
       '<div class="fotos" id="f-'+p.id+'"><span class="muted">cargando…</span></div>'+
       '<div class="p-actions">'+
-        '<button class="wa" data-accion="enviar" data-id="'+p.id+'">✓ Marcar enviado</button>'+
-        '<a class="btn" target="_blank" rel="noopener" href="'+wa+'">WhatsApp ↗</a>'+
+        acciones(p)+
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo ↗</button>'+
         '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a>'+
-        '<button class="ghost" data-accion="estado" data-id="'+p.id+'" data-estado="no_interesado">No interesado</button>'+
-        '<button class="ghost" data-accion="estado" data-id="'+p.id+'" data-estado="reagendar">Reagendar</button>'+
       '</div></div>';
   }).join('');
   r.prospectos.forEach(p=>cargarFotos(p.id));
@@ -263,11 +292,9 @@ async function cargarTabla(){
         '<td><span class="t-name"><span class="t-dot" style="background:'+c+'"></span>'+p.nombre_negocio+'</span></td>'+
         '<td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+p.whatsapp+'</td>'+
         '<td>'+
+        acciones(p)+
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo</button> '+
-        '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a> '+
-        (p.estado!=='enviado'?'<button data-accion="enviar" data-id="'+p.id+'">Enviado</button> ':'')+
-        (p.estado==='enviado'||p.estado==='no_interesado'?'':'<button data-accion="estado" data-id="'+p.id+'" data-estado="reagendar">Reagendar</button> ')+
-        (p.estado==='enviado'?'':'<button data-accion="estado" data-id="'+p.id+'" data-estado="no_interesado">No</button>')+
+        '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a>'+
         '</td></tr>';
     }).join('')+'</tbody></table>'
   ):('<div class="empty">No hay prospectos con ese filtro.</div>');
@@ -279,7 +306,19 @@ async function refrescar(){
   COPS=(await api('/api/copys')).copys.reduce((m,c)=>(m[c.id]=c,m),{});
   const s=await api('/api/estado');
   const st=$('#status'); st.className='pill st-'+s.estado; st.textContent=s.estado+(s.estado==='corriendo'?'…':'');
-  loadLote(); cargarTabla();
+  loadLote(); cargarTabla(); poblarSelect();
+}
+
+// Select del generador de textos
+let PROS={};
+function prosTel(id){ return PROS[id]||''; }
+async function poblarSelect(){
+  const sel=$('#txt-prospecto');
+  const cur=sel.value;
+  const r=await api('/api/prospectos');
+  PROS={}; r.prospectos.forEach(p=>PROS[p.id]=p.whatsapp);
+  sel.innerHTML=r.prospectos.map(p=>'<option value="'+p.id+'">'+(p.estado||'nuevo')+' · '+p.nombre_negocio+'</option>').join('');
+  if(cur) sel.value=cur;
 }
 
 async function estado(id,e){ await api('/api/prospectos/'+id+'/estado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado:e})}); refrescar(); }
@@ -341,6 +380,23 @@ document.addEventListener('click', async (ev)=>{
       aviso('✓ Prototipo y fotos listos');
       abrir();
     }
+  }
+  else if(accion==='txt-email'||accion==='txt-seg'){
+    const pid=$('#txt-prospecto').value;
+    if(!pid){ aviso('Selecciona un prospecto primero','err'); return; }
+    aviso('⏳ Generando texto…');
+    const r=await api('/api/texto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo:accion==='txt-email'?'email':'seguimiento'})});
+    if(r.ok){
+      $('#txt-out').value=r.texto;
+      aviso(accion==='txt-email'?'✓ Email listo — cópialo y envíalo.':'✓ Seguimiento listo.');
+      const wa=waLink(prosTel(pid),r.texto);
+      const link=$('#txt-wa'); link.href=wa; link.classList.remove('hidden');
+    } else aviso('Error al generar','err');
+  }
+  else if(accion==='txt-copiar'){
+    const v=$('#txt-out').value;
+    if(v){ await navigator.clipboard.writeText(v); aviso('✓ Copiado al portapapeles'); }
+    else aviso('Primero genera un texto','err');
   }
 });
 

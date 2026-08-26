@@ -23,6 +23,7 @@ import {
   guardarLote,
   ROOT,
 } from "../lib/prospectos-io.ts";
+import { generarEmail, generarSeguimiento } from "../envio/deepseek.ts";
 import { escribirStatus, leerStatus } from "../lib/pipeline-status.ts";
 import { DASHBOARD } from "./dashboard.ts";
 
@@ -65,6 +66,10 @@ app.get("/api/prospectos", async (c) => {
     nuevo: lista.filter((p) => !p.estado || p.estado === "nuevo").length,
     en_cola: lista.filter((p) => p.estado === "en_cola").length,
     enviado: lista.filter((p) => p.estado === "enviado").length,
+    interesado: lista.filter((p) => p.estado === "interesado").length,
+    reagendar: lista.filter((p) => p.estado === "reagendar").length,
+    no_interesado: lista.filter((p) => p.estado === "no_interesado").length,
+    cliente: lista.filter((p) => p.estado === "cliente").length,
     total: lista.length,
   };
   return c.json({ prospectos: out, totales });
@@ -137,6 +142,18 @@ app.get("/api/copys", async (c) => {
   } catch {
     return c.json({ ok: true, copys: [] });
   }
+});
+
+// Generador de textos: email de presentación o seguimiento para un prospecto.
+app.post("/api/texto", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const id = String(body.id || "");
+  const tipo = String(body.tipo || "email");
+  const lista = await cargarProspectos();
+  const p = lista.find((x) => x.id === id);
+  if (!p) return c.json({ ok: false, error: "prospecto no encontrado" });
+  const texto = tipo === "seguimiento" ? await generarSeguimiento(p) : await generarEmail(p);
+  return c.json({ ok: true, texto, tipo });
 });
 
 app.get("/api/estado", async (c) => c.json(await leerStatus()));
