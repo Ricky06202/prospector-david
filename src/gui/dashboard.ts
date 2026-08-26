@@ -606,13 +606,15 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='cot-generar'){
     const pid=$('#txt-prospecto').value;
     if(!pid){ aviso('Selecciona un prospecto en el selector de arriba','err'); return; }
-    const tipo=$('#cot-tipo').value, productos=+$('#cot-productos').value||0, mant=$('#cot-mant').checked;
+    const tipo=$('#cot-tipo').value, productos=+$('#cot-productos').value||0;
+    let plan=$('#cot-mant').value;
     if(tipo==='catalogo'&&productos<=0){ aviso('Indica el nº de productos del catálogo','err'); return; }
+    if(tipo==='mantenimiento'&&plan==='sin') plan='mensual';
     aviso('⏳ Armando cotización…');
-    const r=await api('/api/cotizador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,mantenimiento:mant})});
+    const r=await api('/api/cotizador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,plan})});
     if(r.ok){
       $('#cot-out').value=r.texto;
-      $('#cot-info').textContent='Total: B/. '+r.cotizacion.total.toFixed(2);
+      $('#cot-info').textContent='Total inicial: B/. '+r.cotizacion.total.toFixed(2)+(r.cotizacion.planInfo?' (+ '+r.cotizacion.planInfo.label+' '+r.cotizacion.planInfo.dias+' días)':'');
       aviso('✓ Cotización lista — cópiala y envíala.');
     } else aviso('Error al cotizar','err');
   }
@@ -648,9 +650,11 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='cot-pdf'){
     const pid=$('#txt-prospecto').value;
     if(!pid){ aviso('Selecciona un prospecto','err'); return; }
-    const tipo=$('#cot-tipo').value, productos=+$('#cot-productos').value||0, mant=$('#cot-mant').checked;
+    const tipo=$('#cot-tipo').value, productos=+$('#cot-productos').value||0;
+    let plan=$('#cot-mant').value;
+    if(tipo==='mantenimiento'&&plan==='sin') plan='mensual';
     aviso('⏳ Generando PDF…');
-    const r=await fetch('/api/cotizador/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,mantenimiento:mant})});
+    const r=await fetch('/api/cotizador/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,plan})});
     if(r.ok){
       const blob=await r.blob();
       const a=document.createElement('a');
