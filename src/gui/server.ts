@@ -24,6 +24,8 @@ import {
   ROOT,
 } from "../lib/prospectos-io.ts";
 import { generarEmail, generarSeguimiento, generarRespuesta } from "../envio/deepseek.ts";
+import { PRECIOS, cotizar, textoCotizacion } from "../lib/precios.ts";
+import type { TipoProyecto } from "../lib/precios.ts";
 import { escribirStatus, leerStatus } from "../lib/pipeline-status.ts";
 import { DASHBOARD } from "./dashboard.ts";
 
@@ -142,6 +144,22 @@ app.get("/api/copys", async (c) => {
   } catch {
     return c.json({ ok: true, copys: [] });
   }
+});
+
+// Cotizador: precios configurables y generación de cotizaciones con desglose.
+app.get("/api/cotizador/precios", (c) => c.json({ ok: true, precios: PRECIOS }));
+
+app.post("/api/cotizador", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const id = String(body.id || "");
+  const tipo = String(body.tipo || "landing") as TipoProyecto;
+  const productos = Math.max(0, Number(body.productos) || 0);
+  const mantenimiento = Boolean(body.mantenimiento);
+  const lista = await cargarProspectos();
+  const p = lista.find((x) => x.id === id);
+  const nombre = p ? p.nombre_negocio : "Negocio";
+  const cot = cotizar(tipo, productos, mantenimiento);
+  return c.json({ ok: true, cotizacion: cot, texto: textoCotizacion(nombre, tipo, productos, mantenimiento) });
 });
 
 // Asistente de respuestas: sugerencia de respuesta al mensaje entrante de un cliente.

@@ -191,7 +191,25 @@ tbody tr:hover{background:#f8fafc}
     </div>
 
     <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
-      <h3 style="margin:0 0 4px">💬 Asistente de respuestas</h3>
+      <h3 style="margin:0 0 4px">🧾 Cotizador</h3>
+      <p class="sub">Genera la cotización con desglose (landing / catálogo / e-commerce). Precios configurables en .env.</p>
+      <div class="row">
+        <select id="cot-tipo" style="min-width:200px">
+          <option value="landing">Landing de presentación</option>
+          <option value="catalogo" selected>Catálogo en línea + WhatsApp</option>
+          <option value="ecommerce">Tienda en línea con pagos</option>
+        </select>
+        <input type="number" id="cot-productos" placeholder="Nº productos" min="0" value="0" style="width:130px">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:600"><input type="checkbox" id="cot-mant" checked> Mantenimiento mensual</label>
+        <button data-accion="cot-generar">🧾 Generar cotización</button>
+      </div>
+      <textarea id="cot-out" rows="9" placeholder="Cotización…" style="width:100%;margin-top:10px;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button data-accion="cot-copiar">📋 Copiar</button>
+        <span class="muted" id="cot-info"></span>
+      </div>
+    </div>
+  </section>
       <p class="sub">Pega el mensaje que te escribió el cliente y genera una respuesta sugerida con la oferta.</p>
       <textarea id="resp-in" rows="3" placeholder="Mensaje entrante del cliente…" style="width:100%;font:inherit;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
       <div class="row" style="margin-top:10px">
@@ -440,6 +458,24 @@ document.addEventListener('click', async (ev)=>{
     const v=$('#resp-out').value;
     if(v){ await navigator.clipboard.writeText(v); aviso('✓ Copiado al portapapeles'); }
     else aviso('Primero genera una respuesta','err');
+  }
+  else if(accion==='cot-generar'){
+    const pid=$('#txt-prospecto').value;
+    if(!pid){ aviso('Selecciona un prospecto en el selector de arriba','err'); return; }
+    const tipo=$('#cot-tipo').value, productos=+$('#cot-productos').value||0, mant=$('#cot-mant').checked;
+    if(tipo==='catalogo'&&productos<=0){ aviso('Indica el nº de productos del catálogo','err'); return; }
+    aviso('⏳ Armando cotización…');
+    const r=await api('/api/cotizador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,mantenimiento:mant})});
+    if(r.ok){
+      $('#cot-out').value=r.texto;
+      $('#cot-info').textContent='Total: B/. '+r.cotizacion.total.toFixed(2);
+      aviso('✓ Cotización lista — cópiala y envíala.');
+    } else aviso('Error al cotizar','err');
+  }
+  else if(accion==='cot-copiar'){
+    const v=$('#cot-out').value;
+    if(v){ await navigator.clipboard.writeText(v); aviso('✓ Cotización copiada'); }
+    else aviso('Primero genera una cotización','err');
   }
 });
 
