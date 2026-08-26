@@ -26,6 +26,8 @@ import {
 import { generarEmail, generarSeguimiento, generarRespuesta } from "../envio/deepseek.ts";
 import { PRECIOS, cotizar, textoCotizacion, htmlCotizacion } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
+import { PLANES, sumaDias, diasRestantes, mensajeRenovacion } from "../lib/mantenimiento.ts";
+import type { PlanMantenimiento } from "../lib/mantenimiento.ts";
 import { launch } from "puppeteer-core";
 import { escribirStatus, leerStatus } from "../lib/pipeline-status.ts";
 import { DASHBOARD } from "./dashboard.ts";
@@ -193,6 +195,75 @@ app.post("/api/cotizador/pdf", async (c) => {
     await browser.close().catch(() => {});
     return c.json({ ok: false, error: String(e) }, 500);
   }
+});
+
+// ============ MANTENIMIENTO RECURRENTE ============
+app.get("/api/mantenimiento", async (c) => {
+  const lista = await cargarProspectos();
+  const items = lista
+    .filter((p) => p.mantenimiento)
+    .map((p) => ({
+      id: p.id,
+      nombre: p.nombre_negocio,
+      whatsapp: p.whatsapp,
+      plan: p.mantenimiento!.plan,
+      vence: p.mantenimiento!.vence,
+      dias: diasRestantes(p.mantenimiento!.vence),
+      precio: PLANES[p.mantenimiento!.plan]?.precio || PRECIOS.mantenimiento,
+    }))
+    .sort((a, b) => a.dias - b.dias);
+  const ingresoMes = items.reduce(
+    (s, i) => s + (i.precio / ((PLANES[i.plan]?.dias || 30) / 30)),
+    0
+  );
+  return c.json({ ok: true, items, ingresoMes: Math.round(ingresoMes * 100) / 100 });
+});
+
+app.post("/api/mantenimiento", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const id = String(body.id || "");
+  const plan = String(body.plan || "mensual") as PlanMantenimiento;
+  if (!PLANES[plan]) return c.json({ ok: false });
+  const lista = await cargarProspectos();
+  if (!lista.some((p) => p.id === id)) return c.json({ ok: false });
+  const vence = sumaDias(new Date().toISOString(), PLANES[plan].dias);
+  await guardarProspectos(lista.map((p) => (p.id === id ? { ...p, mantenimiento: { plan, vence } } : p)));
+  return c.json({ ok: true });
+});
+
+app.post("/api/mantenimiento/:id/renovar", async (c) => {
+  const id = c.req.param("id");
+  const lista = await cargarProspectos();
+  const p = lista.find((x) => x.id === id);
+  if (!p?.mantenimiento) return c.json({ ok: false });
+  const plan = p.mantenimiento.plan;
+  const base = p.mantenimiento.vence && diasRestantes(p.mantenimiento.vence) > 0 ? p.mantenimiento.vence : new Date().toISOString();
+  const vence = sumaDias(base, PLANES[plan].dias);
+  await guardarProspectos(lista.map((x) => (x.id === id ? { ...x, mantenimiento: { ...x.mantenimiento!, vence } } : x)));
+  return c.json({ ok: true });
+});
+
+app.post("/api/mantenimiento/:id/quitar", async (c) => {
+  const id = c.req.param("id");
+  const lista = await cargarProspectos();
+  const act = lista.map((x) => {
+    if (x.id !== id) return x;
+    const { mantenimiento, ...rest } = x;
+    return rest;
+  });
+  await guardarProspectos(act);
+  return c.json({ ok: true });
+});
+
+// ============ MANTENIMIENTO (mensaje de renovación) ============
+app.get("/api/mantenimiento/:id/mensaje", async (c) => {
+  const id = c.req.param("id");
+  const lista = await cargarProspectos();
+  const p = lista.find((x) => x.id === id);
+  if (!p?.mantenimiento) return c.json({ ok: false });
+  const precio = PLANES[p.mantenimiento.plan]?.precio || PRECIOS.mantenimiento;
+  const texto = mensajeRenovacion(p.nombre_negocio, p.mantenimiento.plan, precio);
+  return c.json({ ok: true, texto });
 });
 
 // Asistente de respuestas: sugerencia de respuesta al mensaje entrante de un cliente.

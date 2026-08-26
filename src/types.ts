@@ -16,6 +16,11 @@ export interface Prospecto {
   color_accent: string;
   /** true si el negocio ya revela tener sitio web propio (filtro "a ciegas digitales"). */
   tiene_web?: boolean;
+  /** Plan de mantenimiento recurrente (si el cliente lo tiene contratado). */
+  mantenimiento?: {
+    plan: "mensual" | "trimestral" | "semestral";
+    vence: string; // ISO
+  };
   /** Estado de prospección: nuevo | en_cola | enviado | no_interesado | reagendar. */
   estado?: string;
   /** Fecha de envío (ISO) cuando estado === "enviado". */

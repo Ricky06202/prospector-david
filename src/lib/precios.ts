@@ -10,6 +10,8 @@ export const PRECIOS = {
   porProducto: Number(process.env.PRECIO_POR_PRODUCTO || 2),
   ecommerce: Number(process.env.PRECIO_ECOMMERCE || 800),
   mantenimiento: Number(process.env.PRECIO_MANTENIMIENTO || 25),
+  mantenimientoTrimestral: Number(process.env.PRECIO_MANT_TRIMESTRAL || 60),
+  mantenimientoSemestral: Number(process.env.PRECIO_MANT_SEMESTRAL || 100),
 };
 
 export type TipoProyecto = "landing" | "catalogo" | "ecommerce";

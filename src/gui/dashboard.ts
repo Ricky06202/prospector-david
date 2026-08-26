@@ -133,6 +133,7 @@ tbody tr:hover{background:#f8fafc}
     <a data-pantalla="dashboard" class="active" href="#"><span class="ic">◧</span> Dashboard</a>
     <a data-pantalla="prospectos" href="#"><span class="ic">☷</span> Prospectos</a>
     <a data-pantalla="herramientas" href="#"><span class="ic">⚙</span> Herramientas</a>
+    <a data-pantalla="mantenimiento" href="#"><span class="ic">♻</span> Mantenimiento</a>
   </nav>
   <div class="side-foot">
     <b><span class="dot"></span>Sistema operativo</b>
@@ -203,6 +204,29 @@ tbody tr:hover{background:#f8fafc}
         <button data-accion="filtrar">Filtrar</button>
       </div>
       <div class="table-wrap"><div id="tabla"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ MANTENIMIENTO ============ -->
+  <section class="screen" id="scr-mantenimiento">
+    <div class="card">
+      <h2>♻ Mantenimiento recurrente</h2>
+      <p class="sub">Registra a tus clientes en el plan mensual/trimestral/semestral y controla las renovaciones con un clic. Incluye: contenido actualizado, soporte, respaldo y optimización.</p>
+      <div class="row">
+        <select id="mant-select" style="min-width:260px"></select>
+        <select id="mant-plan">
+          <option value="mensual">Mensual · B/. 25</option>
+          <option value="trimestral">Trimestral · B/. 60</option>
+          <option value="semestral">Semestral · B/. 100</option>
+        </select>
+        <button class="prim" data-accion="mant-registrar">Registrar cliente</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Clientes en mantenimiento</h2>
+      <p class="sub" id="mant-resumen">…</p>
+      <div id="mant-list"><div class="empty">Cargando…</div></div>
     </div>
   </section>
 
@@ -297,7 +321,7 @@ function acciones(p){
 }
 
 /* ---------- Navegación entre páginas (sidebar) ---------- */
-const TITULOS={dashboard:'Dashboard',prospectos:'Prospectos',herramientas:'Herramientas'};
+const TITULOS={dashboard:'Dashboard',prospectos:'Prospectos',herramientas:'Herramientas',mantenimiento:'Mantenimiento'};
 document.querySelectorAll('.side-nav a[data-pantalla]').forEach(a=>{
   a.addEventListener('click',(e)=>{
     e.preventDefault();
@@ -379,7 +403,45 @@ async function refrescar(){
   COPS=(await api('/api/copys')).copys.reduce((m,c)=>(m[c.id]=c,m),{});
   const s=await api('/api/estado');
   const st=$('#status'); st.className='pill st-'+s.estado; st.textContent=s.estado+(s.estado==='corriendo'?'…':'');
-  loadLote(); cargarTabla(); poblarSelect();
+  loadLote(); cargarTabla(); poblarSelect(); poblarMantSelect(); cargarMant();
+}
+
+// ============ MANTENIMIENTO ============
+async function poblarMantSelect(){
+  const sel=$('#mant-select');
+  const r=await api('/api/prospectos');
+  const candidatos=r.prospectos.filter(p=>p.estado==='cliente'||p.mantenimiento);
+  sel.innerHTML=candidatos.length
+    ? candidatos.map(p=>'<option value="'+p.id+'">'+(p.mantenimiento?'♻ ':'')+p.nombre_negocio+'</option>').join('')
+    : '<option value="">Marca un prospecto como "Cliente" primero</option>';
+}
+function mantBadge(dias){
+  if(dias<0) return '<span class="badge b-no_interesado">Vencido ('+Math.abs(dias)+'d)</span>';
+  if(dias<=15) return '<span class="badge b-reagendar">Renueva en '+dias+'d</span>';
+  if(dias<=30) return '<span class="badge b-en_cola">Renueva en '+dias+'d</span>';
+  return '<span class="badge b-enviado">'+dias+'d</span>';
+}
+async function cargarMant(){
+  const r=await api('/api/mantenimiento');
+  const box=$('#mant-list');
+  $('#mant-resumen').textContent=r.ok
+    ? (r.items.length+' cliente(s) · Ingreso recurrente ≈ B/. '+r.ingresoMes.toFixed(0)+'/mes')
+    : '—';
+  box.innerHTML=r.items.length
+    ? r.items.map(i=>{
+        const fecha=new Date(i.vence).toLocaleDateString('es-PA');
+        return '<div class="p-card">'+
+          '<div class="p-top">'+
+            '<div style="flex:1"><div class="p-name">'+i.nombre+'</div><div class="p-meta">'+i.plan+' · B/. '+i.precio.toFixed(2)+' · vence: '+fecha+'</div></div>'+
+            mantBadge(i.dias)+
+          '</div>'+
+          '<div class="p-actions" style="margin-top:10px">'+
+            '<button class="wa" data-accion="mant-mensaje" data-id="'+i.id+'">📤 Mensaje de cobro</button>'+
+            '<button data-accion="mant-renovar" data-id="'+i.id+'">✓ Renovar (+'+i.plan+')</button>'+
+            '<button class="danger" data-accion="mant-quitar" data-id="'+i.id+'">Quitar</button>'+
+          '</div></div>';
+      }).join('')
+    : '<div class="empty">Aún no hay clientes en mantenimiento.</div>';
 }
 
 let PROS={};
@@ -549,6 +611,30 @@ document.addEventListener('click', async (ev)=>{
     const v=$('#cot-out').value;
     if(v){ await navigator.clipboard.writeText(v); aviso('✓ Cotización copiada'); }
     else aviso('Primero genera una cotización','err');
+  }
+  else if(accion==='mant-registrar'){
+    const id=$('#mant-select').value;
+    if(!id||id===''){ aviso('Registra primero el cliente como "Cliente" en Prospectos','err'); return; }
+    await api('/api/mantenimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,plan:$('#mant-plan').value})});
+    aviso('✓ Cliente registrado en mantenimiento');
+    refrescar();
+  }
+  else if(accion==='mant-renovar'){
+    await api('/api/mantenimiento/'+id+'/renovar',{method:'POST'});
+    aviso('✓ Mantenimiento renovado (+el período del plan)');
+    refrescar();
+  }
+  else if(accion==='mant-quitar'){
+    await api('/api/mantenimiento/'+id+'/quitar',{method:'POST'});
+    aviso('Cliente quitado del mantenimiento');
+    refrescar();
+  }
+  else if(accion==='mant-mensaje'){
+    const r=await api('/api/mantenimiento/'+id+'/mensaje');
+    if(r.ok){
+      const p=PROS[id]||{};
+      window.open(waLink(prosTel(id),r.texto),'_blank');
+    }
   }
   else if(accion==='cot-pdf'){
     const pid=$('#txt-prospecto').value;
