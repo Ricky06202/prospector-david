@@ -230,6 +230,18 @@ app.get("/api/prospectos/:id/descargar", async (c) => {
 
 app.get("/", (c) => c.html(DASHBOARD));
 
+// Assets de las landings (Astro los referencia como /_astro/* desde la raíz).
+app.get("/_astro/*", async (c) => {
+  const p = c.req.path.replace("/_astro/", "");
+  const file = join(DIST, "_astro", p);
+  try {
+    const data = await readFile(file);
+    return c.body(data, 200, { "Content-Type": MIME[extname(file)] || "application/octet-stream" });
+  } catch {
+    return c.body("no", 404);
+  }
+});
+
 // Prototipos generados (landings) — abre la landing real de un prospecto.
 const DIST = join(ROOT, "generator", "dist");
 const MIME: Record<string, string> = {
