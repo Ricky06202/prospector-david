@@ -60,9 +60,15 @@ export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, produc
         fila(`Publicación de ${productos} productos`, productos * PRECIOS.porProducto)
       : fila("Proyecto", c.base);
 
-  const mantTexto = conMantenimiento
-    ? `<div style="margin-top:12px;font-size:12px;color:#64748b">Mantenimiento mensual incluido: <b style="color:#0f172a">B/. ${PRECIOS.mantenimiento.toFixed(2)}/mes</b></div>`
-    : `<div style="margin-top:12px;font-size:12px;color:#64748b">Mantenimiento opcional: <b style="color:#0f172a">B/. ${PRECIOS.mantenimiento.toFixed(2)}/mes</b> para mantener la página actualizada.</div>`;
+  const mantTexto = `<div style="margin-top:16px;padding:14px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#78350f;line-height:1.6">
+    <b>${conMantenimiento ? "Mantenimiento mensual incluido" : "Mantenimiento mensual (opcional)"} · B/. ${PRECIOS.mantenimiento.toFixed(2)}/mes — ¿qué incluye?</b>
+    <ul style="margin:8px 0 0;padding-left:18px">
+      <li>Actualización de contenido: precios, fotos, productos y promociones cuando lo necesites.</li>
+      <li>Soporte técnico directo por WhatsApp.</li>
+      <li>Respaldo y seguridad de tu página.</li>
+      <li>Optimización de velocidad para que cargue rápido.</li>
+    </ul>
+  </div>`;
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
     *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
@@ -133,9 +139,10 @@ export function textoCotizacion(
   lineas.push(``);
   lineas.push(`Incluye: dominio propio, alojamiento, diseño a medida y botón de WhatsApp.`);
   if (conMantenimiento) {
-    lineas.push(`Mantenimiento mensual: B/. ${c.mantenimiento.toFixed(2)}/mes (contenido actualizado, soporte y optimización).`);
+    lineas.push(`Mantenimiento mensual: B/. ${c.mantenimiento.toFixed(2)}/mes`);
+    lineas.push(`  › Incluye: contenido actualizado (precios, fotos, productos), soporte directo, respaldo y optimización.`);
   } else {
-    lineas.push(`Opcional: mantenimiento mensual por B/. ${c.mantenimiento.toFixed(2)}/mes para mantener todo actualizado.`);
+    lineas.push(`Opcional: mantenimiento mensual por B/. ${c.mantenimiento.toFixed(2)}/mes (contenido actualizado, soporte directo, respaldo y optimización).`);
   }
   lineas.push(`Plazos y detalles se confirman en una llamada breve. ¡Saludos!`);
   return lineas.join("\n");

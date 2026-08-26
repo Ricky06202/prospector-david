@@ -255,6 +255,7 @@ tbody tr:hover{background:#f8fafc}
           <label style="display:flex;align-items:center;gap:6px;font-weight:600"><input type="checkbox" id="cot-mant" checked> Mantenimiento mensual</label>
           <button data-accion="cot-generar">🧾 Generar cotización</button>
         </div>
+        <p class="muted" style="margin:8px 0 0">Mantenimiento (B/. 25/mes) incluye: contenido actualizado cuando lo pidas (precios, fotos, productos), soporte directo, respaldo y optimización.</p>
         <textarea id="cot-out" rows="9" placeholder="Cotización…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
         <div class="row" style="margin-top:10px">
           <button data-accion="cot-copiar">📋 Copiar</button>
@@ -406,16 +407,19 @@ function filtrarLista(){
 $('#txt-buscar').addEventListener('focus',filtrarLista);
 $('#txt-buscar').addEventListener('input',filtrarLista);
 $('#txt-buscar').addEventListener('blur',()=>setTimeout(()=>$('#txt-lista').classList.add('hidden'),150));
-$('#txt-lista').addEventListener('mousedown',(e)=>{
-  e.preventDefault();
+function seleccionarItem(e){
   const it=e.target.closest('.cb-item');
   if(!it) return;
   const id=it.dataset.id;
+  const pr=PROS[id];
+  if(!id||!pr) return;
   $('#txt-prospecto').value=id;
-  $('#txt-buscar').value=PROS[id].nombre;
+  $('#txt-buscar').value=pr.nombre;
   $('#txt-lista').classList.add('hidden');
   mostrarInfoSel();
-});
+}
+$('#txt-lista').addEventListener('mousedown',(e)=>{ e.preventDefault(); seleccionarItem(e); });
+$('#txt-lista').addEventListener('click',(e)=>{ seleccionarItem(e); });
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('.cb')) $('#txt-lista').classList.add('hidden');
 });
