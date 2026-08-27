@@ -1,18 +1,18 @@
 /**
  * Scraper de GOOGLE PLACES API (New) con LEAD SCORING — la vía oficial, sin captchas.
- * Busca negocios por texto, devuelve teléfono, web, coordenadas, rating y reseñas.
- * Luego puntúa cada lead (ver src/lib/lead-scoring.ts) y solo guarda los que pasan:
- *   negocios tradicionales (agro, logística, construcción, servicios) con buena
- *   reputación (+4.0★ y +50 reseñas) y SIN web propia (o con web deficiente).
+ * Busca negocios por texto en TODA Chiriquí (provincia + pueblos), devuelve teléfono,
+ * web, coordenadas, rating y reseñas. Luego puntúa cada lead (src/lib/lead-scoring.ts):
+ *   - Modo rank (default): el score solo ORDENA (mejores primero); no descarta a nadie
+ *     con teléfono válido y sin web buena → maximiza el VOLUMEN de leads.
+ *   - Modo filter: solo guarda los que pasan los umbrales.
  *
  * Config (.env):
  *   GOOGLE_PLACES_API_KEY = tu API key de Google Cloud (Places API habilitada + billing)
- *   PLACES_QUERIES        = "restaurantes en David Chiriquí, salones en David Chiriquí"
- *   PLACES_LIMITE         = máx resultados por búsqueda (la API da hasta 20)
+ *   PLACES_QUERIES        = override de búsquedas (vacío = lista curada de Chiriquí)
+ *   PLACES_LIMITE         = máx resultados por búsqueda (paginado: 20 por página, hasta 60)
  *   SOLO_SIN_WEB          = true → solo negocios sin web propia
- *   ANALIZAR_WEB          = true → chequea la calidad de la web propia (la "deficiente" sigue siendo lead)
- *   SCORE_RATING_MIN / SCORE_RESENAS_MIN / SCORE_MINIMO → umbrales del scoring
- *   SCORE_TOPN            = 0 → guarda todos los que pasan; N → solo los N mejores por corrida
+ *   SCORE_MODO            = "rank" (default) | "filter"
+ *   SCORE_TOPN            = 0 → guarda todos; N → solo los N mejores por corrida
  *
  * Uso: bun run places
  */
@@ -24,7 +24,7 @@ import type { Prospecto } from "../types.ts";
 import { normalizarTelefonoPA } from "../lib/telefono.ts";
 import { accentParaTipo } from "../lib/accent.ts";
 import { normalizarNombre, esWebPropia } from "../lib/dedupe.ts";
-import { calcularScore, esGiroTradicional, ordenarPorScore } from "../lib/lead-scoring.ts";
+import { calcularScore, esGiroTradicional, ordenarPorScore, SCORE_UMBRALES } from "../lib/lead-scoring.ts";
 import { analizarWeb } from "../lib/web-quality.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -33,29 +33,34 @@ const DATA_FILE = join(ROOT, "data", "prospectos.json");
 
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
-// Lista curada de giros de David, Chiriquí (por defecto, sin configurar nada).
-// Incluye los giros tradicionales de la estrategia (agro, logística, construcción, servicios).
+// Lista curada de giros a lo largo de TODA LA PROVINCIA de Chiriquí (no solo David):
+// cada giro se busca "en Chiriquí" (provincia entera) y en los pueblos principales
+// (Boquete, Volcán, Bugaba, La Concepción, Puerto Armuelles, Alanje).
+const CATEGORIAS = [
+  "agropecuarias", "ferreterías", "empresas de transporte", "encomiendas",
+  "empresas de construcción", "servicios de ingeniería", "insumos agrícolas",
+  "restaurantes", "cafeterías", "salones de belleza", "barberías",
+  "gimnasios", "veterinarias", "farmacias", "clínicas médicas",
+  "clínicas dentales", "talleres mecánicos", "tiendas de repuestos",
+  "tiendas de ropa", "supermercados", "abogados", "agencias de viajes",
+  "hoteles", "panaderías", "ópticas", "electrónicos",
+];
+// Categorías de mayor volumen que además se buscan pueblo por pueblo.
+const CATEGORIAS_POR_PUEBLO = [
+  "restaurantes", "farmacias", "salones de belleza", "barberías",
+  "talleres mecánicos", "ferreterías", "agropecuarias", "gimnasios",
+];
+const PUEBLOS = ["Boquete", "Volcán", "Bugaba", "La Concepción", "Puerto Armuelles", "Alanje"];
+
 const GIROS = [
-  "agropecuarias en David Chiriquí", "ferreterías en David Chiriquí",
-  "empresas de transporte en David Chiriquí", "encomiendas en David Chiriquí",
-  "empresas de construcción en David Chiriquí", "servicios de ingeniería en David Chiriquí",
-  "tiendas de maquinaria en David Chiriquí", "servicios de topografía en David Chiriquí",
-  "restaurantes en David Chiriquí", "cafeterías en David Chiriquí",
-  "salones de belleza en David Chiriquí", "barberías en David Chiriquí",
-  "gimnasios en David Chiriquí", "veterinarias en David Chiriquí",
-  "farmacias en David Chiriquí", "clínicas médicas en David Chiriquí",
-  "clínicas dentales en David Chiriquí", "talleres mecánicos en David Chiriquí",
-  "tiendas de repuestos en David Chiriquí", "tiendas de ropa en David Chiriquí",
-  "supermercados en David Chiriquí", "abogados en David Chiriquí",
-  "agencias de viajes en David Chiriquí", "hoteles en David Chiriquí",
-  "panaderías en David Chiriquí", "ópticas en David Chiriquí",
-  "electrónicos en David Chiriquí",
+  ...CATEGORIAS.map((c) => `${c} en Chiriquí`),
+  ...CATEGORIAS_POR_PUEBLO.flatMap((c) => PUEBLOS.map((p) => `${c} en ${p}, Chiriquí`)),
 ];
 
 // Si no configuraste PLACES_QUERIES, corre toda la lista curada.
 const QUERIES = (process.env.PLACES_QUERIES || "").split(",").map((s) => s.trim()).filter(Boolean);
 const queriesFinales = QUERIES.length ? QUERIES : GIROS;
-const LIMITE = Number(process.env.PLACES_LIMITE || 20);
+const LIMITE = Number(process.env.PLACES_LIMITE || 60);
 const SOLO_SIN_WEB = process.env.SOLO_SIN_WEB !== "false";
 const ANALIZAR_WEB = process.env.ANALIZAR_WEB !== "false";
 const TOPN = Number(process.env.SCORE_TOPN || 0);
@@ -64,6 +69,8 @@ if (!API_KEY) {
   console.error("[places] Falta GOOGLE_PLACES_API_KEY en .env");
   process.exit(1);
 }
+// Tipada como string tras el guard (TS no propaga el narrowing dentro de funciones).
+const GOOGLE_KEY: string = API_KEY;
 
 const FIELDS = [
   "places.displayName",
@@ -104,23 +111,43 @@ let sinReputacion = 0;      // rating o reseñas bajo el umbral
 let conWebBuena = 0;        // web propia en buen estado
 let fallaScoring = 0;       // no pasa el puntaje mínimo
 
+/**
+ * Busca con PAGINACIÓN: la API devuelve máx 20 por petición pero permite seguir
+ * con nextPageToken hasta 3 páginas (60/búsqueda). Sin esto perdíamos 2/3 del pool.
+ */
+async function buscarTexto(q: string): Promise<any[]> {
+  const resultados: any[] = [];
+  let nextPageToken: string | undefined;
+  let paginas = 0;
+  do {
+    const body: Record<string, unknown> = { textQuery: q, pageSize: 20 };
+    if (nextPageToken) body.pageToken = nextPageToken;
+    const res = await fetch(`https://places.googleapis.com/v1/places:searchText?languageCode=es`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_KEY,
+        "X-Goog-FieldMask": FIELDS,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      console.warn(`[places] Error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      break;
+    }
+    const data = await res.json();
+    resultados.push(...(data.places || []));
+    nextPageToken = data.nextPageToken;
+    paginas++;
+    if (!nextPageToken) break;
+    await new Promise((r) => setTimeout(r, 900)); // límite de cuota suave entre páginas
+  } while (resultados.length < LIMITE && paginas < 3);
+  return resultados.slice(0, LIMITE);
+}
+
 for (const q of queriesFinales) {
   console.log(`[places] Buscando: ${q}`);
-  const res = await fetch(`https://places.googleapis.com/v1/places:searchText?languageCode=es`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": API_KEY,
-      "X-Goog-FieldMask": FIELDS,
-    },
-    body: JSON.stringify({ textQuery: q }),
-  });
-  if (!res.ok) {
-    console.warn(`[places] Error ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    continue;
-  }
-  const data = await res.json();
-  const lugares = data.places || [];
+  const lugares = await buscarTexto(q);
   console.log(`[places] ${lugares.length} resultados`);
 
   for (const l of lugares.slice(0, LIMITE)) {
@@ -197,8 +224,8 @@ for (const p of extraidos) {
     continue;
   }
   if (!sc.pasa_filtro) {
-    const bajoRating = p.rating !== undefined && p.rating < Number(process.env.SCORE_RATING_MIN || 4);
-    const bajasReseñas = (p.reseñas ?? 0) < Number(process.env.SCORE_RESENAS_MIN || 50);
+    const bajoRating = p.rating !== undefined && p.rating < SCORE_UMBRALES.RATING_MIN;
+    const bajasReseñas = (p.reseñas ?? 0) < SCORE_UMBRALES.RESENAS_MIN;
     if (bajoRating || bajasReseñas) sinReputacion++;
     else fallaScoring++;
     continue;
@@ -214,8 +241,9 @@ const finales = TOPN > 0 ? ordenados.slice(0, TOPN) : ordenados;
 const descartadosPorTop = ordenados.length - finales.length;
 
 console.log(
-  `[places] Sin nombre/teléfono: ${descartados} · Con web buena (filtrados): ${conWebBuena} · ` +
-  `Sin reputación: ${sinReputacion} · No pasa score: ${fallaScoring} · Top descartado: ${descartadosPorTop}`
+  `[places] Modo: ${SCORE_UMBRALES.SCORE_MODO} · Sin nombre/teléfono: ${descartados} · ` +
+  `Con web buena (filtrados): ${conWebBuena} · Sin reputación: ${sinReputacion} · ` +
+  `No pasa score: ${fallaScoring} · Top descartado: ${descartadosPorTop}`
 );
 
 for (const p of finales) {
