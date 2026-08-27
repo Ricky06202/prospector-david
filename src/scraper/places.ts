@@ -10,7 +10,6 @@
  *   GOOGLE_PLACES_API_KEY = tu API key de Google Cloud (Places API habilitada + billing)
  *   PLACES_QUERIES        = override de búsquedas (vacío = lista curada de Chiriquí)
  *   PLACES_LIMITE         = máx resultados por búsqueda (paginado: 20 por página, hasta 60)
- *   SOLO_SIN_WEB          = true → solo negocios sin web propia
  *   SCORE_MODO            = "rank" (default) | "filter"
  *   SCORE_TOPN            = 0 → guarda todos; N → solo los N mejores por corrida
  *
@@ -78,7 +77,6 @@ const QUERIES = (process.env.PLACES_QUERIES || "").split(",").map((s) => s.trim(
 const queriesFinales = QUERIES.length ? QUERIES : GIROS;
 console.log(`[places] ${queriesFinales.length} búsquedas (${QUERIES.length ? "custom PLACES_QUERIES" : "lista curada de Chiriquí"})`);
 const LIMITE = Number(process.env.PLACES_LIMITE || 60);
-const SOLO_SIN_WEB = process.env.SOLO_SIN_WEB !== "false";
 const ANALIZAR_WEB = process.env.ANALIZAR_WEB !== "false";
 const TOPN = Number(process.env.SCORE_TOPN || 0);
 
@@ -178,11 +176,9 @@ for (const q of queriesFinales) {
     const tipo = tipoLegible(l.types || []);
     const tieneWebRaw = l.websiteUri && esWebPropia(l.websiteUri, "https://www.google.com/maps");
     const tieneWeb = Boolean(tieneWebRaw);
-    if (SOLO_SIN_WEB && tieneWeb) {
-      conWebBuena++;
-      continue;
-    }
 
+    // NOTA: ya NO se descarta al que tiene web. Pasa al análisis de calidad y se
+    // clasifica: web buena → track UPSELL; web deficiente → track LANDING.
     extraidos.push({
       id: normalizarNombre(nombre).replace(/\s+/g, "-").slice(0, 60) || `places-${extraidos.length}`,
       nombre_negocio: nombre,
@@ -235,10 +231,17 @@ if (ANALIZAR_WEB) {
   }
 }
 
-// ---- LEAD SCORING + ranking ----
-const puntuados: Prospecto[] = [];
+// ---- LEAD SCORING + ranking + TRACK (landing / upsell) ----
+const puntuados: Prospecto[] = [];   // track LANDING ($300, sin web / web deficiente)
+const upsells: Prospecto[] = [];     // track UPSELL (dashboard $1,200, ya tiene web buena)
 for (const p of extraidos) {
-  if (p.tiene_web && !p.web_deficiente) {
+  // Web propia confirmada en buen estado → candidato a UPSEL (tiene presencia digital).
+  if (p.tiene_web && p.web_deficiente === false) {
+    p.tipo_lead = "upsell";
+    p.lead_score = 0;
+    p.tier_lead = "baja";
+    p.scoring_motivo = "Ya tiene web propia en buen estado → candidato a plataforma/dashboard";
+    upsells.push(p);
     conWebBuena++;
     continue;
   }
@@ -263,21 +266,24 @@ for (const p of extraidos) {
   p.lead_score = sc.score;
   p.tier_lead = sc.tier;
   p.scoring_motivo = sc.motivo;
+  p.tipo_lead = "landing";
   puntuados.push(p);
 }
 
-const ordenados = ordenarPorScore(puntuados);
+// Se fusionan AMBOS tracks a prospectos.json (landing + upsell marcados).
+const todos: Prospecto[] = [...puntuados, ...upsells];
+const ordenados = ordenarPorScore(todos);
 const finales = TOPN > 0 ? ordenados.slice(0, TOPN) : ordenados;
 const descartadosPorTop = ordenados.length - finales.length;
 
 console.log(
   `[places] Modo: ${SCORE_UMBRALES.SCORE_MODO} · Sin nombre/teléfono: ${descartados} · ` +
-  `Con web buena (filtrados): ${conWebBuena} · Sin reputación: ${sinReputacion} · ` +
+  `Web buena → UPSEL: ${upsells.length} · Sin reputación: ${sinReputacion} · ` +
   `No pasa score: ${fallaScoring} · Top descartado: ${descartadosPorTop}`
 );
 
 for (const p of finales) {
-  console.log(`  + [${p.tier_lead}] ${p.nombre_negocio.slice(0, 36)} · score ${p.lead_score} · ${p.rating}★ (${p.reseñas}) · ${p.tiene_web ? "web deficiente" : "sin web"}`);
+  console.log(`  + [${p.tipo_lead === "upsell" ? "UPSEL" : p.tier_lead}] ${p.nombre_negocio.slice(0, 36)} · ${p.tipo_lead === "upsell" ? "web buena" : `score ${p.lead_score} · ${p.tiene_web ? "web deficiente" : "sin web"}`}`);
 }
 
 // ---- Fusión con dedup (los mejores leads entran primero) ----

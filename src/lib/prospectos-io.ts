@@ -67,9 +67,12 @@ export async function guardarLote(ids: string[]): Promise<void> {
 /** Prepara (o reutiliza) un lote de N prospectos. Nunca repite los enviados. */
 export async function prepararLote(n: number): Promise<{ elegidos: Prospecto[]; enCola: Prospecto[]; nuevos: number }> {
   const lista = await cargarProspectos();
-  const enCola = lista.filter((p) => p.estado === "en_cola");
+  const enCola = lista.filter((p) => p.estado === "en_cola" && p.tipo_lead !== "upsell");
   // Disponibles: nuevos + reagendados (los pospuestos vuelven a salir en lotes futuros).
-  const pendientes = lista.filter((p) => !p.estado || p.estado === "nuevo" || p.estado === "reagendar");
+  // El track UPSELL queda FUERA del lote de $300.
+  const pendientes = lista.filter(
+    (p) => (!p.estado || p.estado === "nuevo" || p.estado === "reagendar") && p.tipo_lead !== "upsell"
+  );
 
   // Si ya hay un lote activo, se mantiene (idempotente). Si no, se arma uno nuevo.
   const ids = enCola.map((p) => p.id);
@@ -89,13 +92,16 @@ export async function prepararLote(n: number): Promise<{ elegidos: Prospecto[]; 
   };
 }
 
-/** Prospectos activos para procesar: el lote actual si existe, si no NICHO, si no todos. */
-export async function filtrarActivos(lista: Prospecto[], nicho?: string): Promise<Prospecto[]> {
+/** Prospectos activos para procesar: el lote actual si existe, si no NICHO, si no todos.
+ *  Por defecto (lead="landing") el track de UPSELL queda fuera del pipeline de $300. */
+export async function filtrarActivos(lista: Prospecto[], nicho?: string, lead: "landing" | "upsell" | "todos" = "landing"): Promise<Prospecto[]> {
   let base = lista;
   if (nicho) {
     const q = nicho.toLowerCase();
     base = base.filter((p) => p.tipo.toLowerCase().includes(q) || p.nombre_negocio.toLowerCase().includes(q));
   }
+  if (lead === "upsell") base = base.filter((p) => p.tipo_lead === "upsell");
+  else if (lead === "landing") base = base.filter((p) => p.tipo_lead !== "upsell");
   const lote = await leerLote();
   if (lote.length) {
     const enLote = base.filter((p) => lote.includes(p.id));

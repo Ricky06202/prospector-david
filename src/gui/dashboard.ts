@@ -99,6 +99,7 @@ input:focus,select:focus,textarea:focus,button:focus{outline:2px solid rgba(13,1
 .b-enviado{background:#f1f5f9;color:#475569}.b-no_interesado{background:#fee2e2;color:#b91c1c}
 .b-reagendar{background:#ede9fe;color:#6d28d9}.b-interesado{background:#dcfce7;color:#059669}
 .b-seguimiento{background:#fce7f3;color:#be185d}
+.b-upsell{background:#fef3c7;color:#b45309}
 .b-cliente{background:#fef9c3;color:#a16207}
 .copy{white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:12px;margin:12px 0;color:#334155;line-height:1.5}
 .fotos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
@@ -212,6 +213,11 @@ tbody tr:hover{background:#f8fafc}
           <option value="en_cola">En cola</option><option value="enviado">Enviados</option>
           <option value="interesado">Interesados</option><option value="cliente">Clientes</option>
           <option value="no_interesado">No interesados</option>
+        </select>
+        <select id="f-lead" title="Track">
+          <option value="landing">Landing (sin web)</option>
+          <option value="upsell">Upsell (tienen web)</option>
+          <option value="todos">Todos</option>
         </select>
         <button data-accion="filtrar">Filtrar</button>
       </div>
@@ -461,16 +467,19 @@ async function loadLote(){
 }
 
 async function cargarTabla(){
-  const q=encodeURIComponent($('#q').value), est=$('#f-estado').value;
-  const r=await api('/api/prospectos?q='+q+'&estado='+est);
+  const q=encodeURIComponent($('#q').value), est=$('#f-estado').value, lead=$('#f-lead').value;
+  const r=await api('/api/prospectos?q='+q+'&estado='+est+'&lead='+lead);
   $('#tabla').innerHTML=r.prospectos.length?(
-    '<table><thead><tr><th>Negocio</th><th>Tipo</th><th>Estado</th><th>Teléfono</th><th>Acciones</th></tr></thead><tbody>'+
+    '<table><thead><tr><th>Negocio</th><th>Tipo</th><th>Estado</th><th>Contacto</th><th>Acciones</th></tr></thead><tbody>'+
     r.prospectos.map(p=>{
       const c=cColor(p.color_accent);
+      const esUpsell=p.tipo_lead==='upsell';
       return '<tr>'+
-        '<td><span class="t-name"><span class="t-dot" style="background:'+c+'"></span>'+p.nombre_negocio+'</span>'+scoreBadge(p)+'</td>'+
+        '<td><span class="t-name"><span class="t-dot" style="background:'+c+'"></span>'+p.nombre_negocio+'</span>'+scoreBadge(p)+(esUpsell?'<span class="badge b-upsell">Upsell</span>':'')+'</td>'+
         '<td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+(p.whatsapp||'')+(p.email?'<div class="muted" style="font-size:11px">'+p.email+'</div>':'')+'</td>'+
-        '<td>'+acciones(p)+
+        '<td>'+(esUpsell
+          ? '<button data-accion="upsell-msg" data-id="'+p.id+'">🚀 Upsell</button> '
+          : acciones(p))+
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo</button> '+
         '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a>'+
         '</td></tr>';
@@ -713,6 +722,13 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='filtrar'){ cargarTabla(); }
   else if(accion==='enviar'){ enviar(id); }
   else if(accion==='estado'){ estado(id,est); }
+  else if(accion==='upsell-msg'){
+    const r=await api('/api/texto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,tipo:'upsell'})});
+    if(r.ok){
+      window.open(waLink(prosTel(id),r.texto),'_blank');
+      aviso('✓ Mensaje de upsell listo en WhatsApp');
+    } else aviso('Error generando el mensaje de upsell','err');
+  }
   else if(accion==='foto'){ abrirLightbox(b.dataset.src); }
   else if(accion==='lb-cerrar'){ cerrarLightbox(); }
   else if(accion==='seg-prototipo'){

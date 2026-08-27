@@ -23,7 +23,7 @@ import {
   guardarLote,
   ROOT,
 } from "../lib/prospectos-io.ts";
-import { generarEmail, generarSeguimiento, generarRespuesta, generarRetomaConDeepSeek, generarMuestraConDeepSeek } from "../envio/deepseek.ts";
+import { generarEmail, generarSeguimiento, generarRespuesta, generarRetomaConDeepSeek, generarMuestraConDeepSeek, generarUpsellConDeepSeek } from "../envio/deepseek.ts";
 import { PRECIOS, MATRIZ, cotizar, textoCotizacion, htmlCotizacion, cotizarEscalonada, textoCotizacionEscalonada, htmlCotizacionEscalonada } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
 import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces, mensajeRetoma, mensajeMuestra } from "../envio/anti-ban.ts";
@@ -65,10 +65,13 @@ app.get("/api/prospectos", async (c) => {
   const estado = c.req.query("estado");
   const nicho = c.req.query("nicho");
   const q = c.req.query("q");
+  const lead = c.req.query("lead");
   let out = lista;
   if (estado) out = out.filter((p) => (p.estado || "nuevo") === estado);
   if (nicho) out = out.filter((p) => p.tipo.toLowerCase().includes(nicho.toLowerCase()));
   if (q) out = out.filter((p) => p.nombre_negocio.toLowerCase().includes(q.toLowerCase()));
+  if (lead === "upsell") out = out.filter((p) => p.tipo_lead === "upsell");
+  else if (lead === "landing") out = out.filter((p) => p.tipo_lead !== "upsell");
   const totales = {
     nuevo: lista.filter((p) => !p.estado || p.estado === "nuevo").length,
     en_cola: lista.filter((p) => p.estado === "en_cola").length,
@@ -361,7 +364,7 @@ app.post("/api/respuesta", async (c) => {
   return c.json({ ok: true, texto });
 });
 
-// Generador de textos: email, seguimiento, RETOMA o MUESTRA (mensaje 2) para un prospecto.
+// Generador de textos: email, seguimiento, RETOMA, MUESTRA o UPSELL para un prospecto.
 app.post("/api/texto", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const id = String(body.id || "");
@@ -376,6 +379,9 @@ app.post("/api/texto", async (c) => {
   } else if (tipo === "muestra") {
     // Mensaje 2: acompaña las imágenes del prototipo (sin enlaces en David).
     texto = await generarMuestraConDeepSeek(p);
+  } else if (tipo === "upsell") {
+    // Track de dashboard: para negocios que YA tienen web buena.
+    texto = await generarUpsellConDeepSeek(p);
   } else if (tipo === "seguimiento") {
     texto = await generarSeguimiento(p);
   } else {
