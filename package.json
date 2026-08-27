@@ -10,7 +10,7 @@
     "scrape": "bun run src/scraper/scrape.ts",
     "gmaps": "bun run src/scraper/googlemaps.ts",
     "places": "bun run src/scraper/places.ts",
-    "build:landings": "LOTE_IDS=$(cat output/lote_actual.json 2>/dev/null) bun run --cwd generator build",
+    "build:landings": "bun run src/lib/build-landings.ts",
     "capturar": "bun run src/screenshots/capturar.ts",
     "envio": "bun run src/envio/generar.ts",
     "gui": "bun run src/gui/server.ts",

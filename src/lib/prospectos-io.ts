@@ -23,12 +23,15 @@ export async function guardarProspectos(lista: Prospecto[]): Promise<void> {
 }
 
 export function setEstado(lista: Prospecto[], id: string, estado: string): Prospecto[] {
+  const ahora = new Date().toISOString();
   return lista.map((p) =>
     p.id === id
       ? {
           ...p,
           estado,
-          enviado_en: estado === "enviado" ? new Date().toISOString() : p.enviado_en,
+          enviado_en: estado === "enviado" ? ahora : p.enviado_en,
+          // Cada contacto (envío o seguimiento) actualiza la fecha base de la retoma.
+          ultimo_contacto: estado === "enviado" || estado === "seguimiento" ? ahora : p.ultimo_contacto,
         }
       : p
   );

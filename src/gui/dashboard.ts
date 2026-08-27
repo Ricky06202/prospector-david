@@ -98,6 +98,7 @@ input:focus,select:focus,textarea:focus,button:focus{outline:2px solid rgba(13,1
 .b-nuevo{background:#dbeafe;color:#1d4ed8}.b-en_cola{background:#fef3c7;color:#b45309}
 .b-enviado{background:#f1f5f9;color:#475569}.b-no_interesado{background:#fee2e2;color:#b91c1c}
 .b-reagendar{background:#ede9fe;color:#6d28d9}.b-interesado{background:#dcfce7;color:#059669}
+.b-seguimiento{background:#fce7f3;color:#be185d}
 .b-cliente{background:#fef9c3;color:#a16207}
 .copy{white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:12px;margin:12px 0;color:#334155;line-height:1.5}
 .fotos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
@@ -132,6 +133,7 @@ tbody tr:hover{background:#f8fafc}
   <nav class="side-nav">
     <a data-pantalla="dashboard" class="active" href="#"><span class="ic">◧</span> Dashboard</a>
     <a data-pantalla="prospectos" href="#"><span class="ic">☷</span> Prospectos</a>
+    <a data-pantalla="seguimientos" href="#"><span class="ic">📡</span> Seguimientos</a>
     <a data-pantalla="herramientas" href="#"><span class="ic">⚙</span> Herramientas</a>
     <a data-pantalla="mantenimiento" href="#"><span class="ic">♻</span> Mantenimiento</a>
   </nav>
@@ -207,6 +209,15 @@ tbody tr:hover{background:#f8fafc}
     </div>
   </section>
 
+  <!-- ============ SEGUIMIENTOS ============ -->
+  <section class="screen" id="scr-seguimientos">
+    <div class="card">
+      <h2>📡 Seguimientos</h2>
+      <p class="sub">Quienes fueron contactados pero no respondieron (ni leyeron). Re-envía su mensaje de retoma cuando quieras — aun después de un mes. En David: solo imágenes, cero enlaces.</p>
+      <div id="seg-list"><div class="empty">Cargando…</div></div>
+    </div>
+  </section>
+
   <!-- ============ MANTENIMIENTO ============ -->
   <section class="screen" id="scr-mantenimiento">
     <div class="card">
@@ -265,16 +276,17 @@ tbody tr:hover{background:#f8fafc}
       </div>
 
       <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
-        <h3 style="margin:0 0 4px">🧾 Cotizador</h3>
-        <p class="sub">Genera la cotización con desglose (landing / catálogo / e-commerce). Precios configurables en .env.</p>
+        <h3 style="margin:0 0 4px">🧾 Cotizador escalonado</h3>
+        <p class="sub">Estrategia del Caballo de Troya: Nivel 1 = Landing en 24 h ($300) · Nivel 2 = Plataforma Operativa ($1,200+, respaldada por la empresa matriz).</p>
         <div class="row">
           <select id="cot-tipo" style="min-width:220px">
-            <option value="landing">Landing de presentación</option>
+            <option value="escalonada" selected>Escalonada (2 niveles)</option>
+            <option value="landing">Solo Nivel 1 — Landing</option>
             <option value="catalogo">Catálogo en línea + WhatsApp</option>
             <option value="ecommerce">Tienda en línea con pagos</option>
             <option value="mantenimiento">Solo mantenimiento (renovación)</option>
           </select>
-          <span id="cot-productos-wrap">
+          <span id="cot-productos-wrap" style="display:none">
             <input type="number" id="cot-productos" placeholder="Nº productos" min="0" value="0" style="width:130px">
           </span>
           <select id="cot-mant" style="min-width:170px">
@@ -285,13 +297,23 @@ tbody tr:hover{background:#f8fafc}
           </select>
           <button data-accion="cot-generar">🧾 Generar cotización</button>
         </div>
-        <p class="muted" style="margin:8px 0 0">Mantenimiento incluye: contenido actualizado cuando lo pidas (precios, fotos, productos), soporte directo, respaldo y optimización. El TOTAL inicial suma el proyecto + el plan elegido.</p>
-        <textarea id="cot-out" rows="9" placeholder="Cotización…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+        <p class="muted" style="margin:8px 0 0">Escalonada = página YA (24 h) + semilla del upsell institucional (dashboard desde $1,200) bajo la garantía de la empresa matriz. El TOTAL inicial suma el Nivel 1 + el plan elegido.</p>
+        <textarea id="cot-out" rows="11" placeholder="Cotización escalonada…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
         <div class="row" style="margin-top:10px">
           <button data-accion="cot-copiar">📋 Copiar</button>
           <button data-accion="cot-pdf">📄 Descargar PDF</button>
           <span class="muted" id="cot-info"></span>
         </div>
+      </div>
+
+      <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
+        <h3 style="margin:0 0 4px">🛡 Ritmo anti-ban de WhatsApp</h3>
+        <p class="sub">Delays dinámicos + secuencia de 2 mensajes (el primero sin enlaces). Actualiza el número de envíos para ver el plan.</p>
+        <div class="row">
+          <input type="number" id="ab-n" value="10" min="1" max="50" style="width:90px">
+          <button data-accion="ab-calcular">Calcular ritmo</button>
+        </div>
+        <div id="ab-out"><div class="empty">Pulsa "Calcular ritmo" para ver el plan de delays de la sesión.</div></div>
       </div>
     </div>
   </section>
@@ -313,12 +335,27 @@ const KPICOL={nuevo:'#2563eb',en_cola:'#d97706',enviado:'#94a3b8',interesado:'#0
 function badg(e){return '<span class="badge b-'+(e||'nuevo')+'">'+(e||'nuevo')+'</span>';}
 function waLink(tel,msg){return 'https://wa.me/'+tel.replace(/\D/g,'')+'?text='+encodeURIComponent(msg);}
 function copDe(id){const c=COPS[id];return c?c.copy_whatsapp:'';}
+function copSecuencia(id){
+  const c=COPS[id];
+  if(!c) return '';
+  if(Array.isArray(c.mensajes)){
+    return c.mensajes.map(m=>{
+      const color=m.tipo==='apertura'?'#b45309':'#0d9488';
+      return '<div style="border-left:3px solid '+color+';padding:2px 0 2px 10px;margin:8px 0">'+
+        '<div style="font-size:11px;font-weight:700;color:#475569">'+m.etiqueta+'</div>'+
+        '<div class="copy">'+m.texto+'</div>'+
+        '<a class="btn" target="_blank" rel="noopener" href="'+m.wa_link+'">Abrir WhatsApp ↗</a></div>';
+    }).join('');
+  }
+  return '<div class="copy">'+copDe(id)+'</div>';
+}
 function aviso(msg,tipo){const el=$('#aviso');el.textContent=msg;el.className='aviso'+(tipo==='err'?' av-err':'');}
 function acciones(p){
   const est=p.estado||'nuevo';
   const b=(label,accion,extra)=>'<button data-accion="'+accion+'" data-id="'+p.id+'"'+(extra?' data-estado="'+extra+'"':'')+'>'+label+'</button> ';
   if(est==='en_cola') return b('✓ Enviado','enviar')+b('★ Interesado','estado','interesado')+b('Reagendar','estado','reagendar')+b('No','estado','no_interesado');
-  if(est==='enviado') return b('★ Interesado','estado','interesado')+b('Reagendar','estado','reagendar')+b('No','estado','no_interesado');
+  if(est==='enviado') return b('📡 Seguimiento','estado','seguimiento')+b('★ Interesado','estado','interesado')+b('Reagendar','estado','reagendar')+b('No','estado','no_interesado');
+  if(est==='seguimiento') return b('★ Interesado','estado','interesado')+b('Reagendar','estado','reagendar')+b('No','estado','no_interesado');
   if(est==='interesado') return b('✓ Cerrar (Cliente)','estado','cliente')+b('No','estado','no_interesado');
   if(est==='reagendar') return b('★ Interesado','estado','interesado')+b('No','estado','no_interesado');
   if(est==='no_interesado') return b('↩ Reactivar','estado','nuevo');
@@ -327,7 +364,7 @@ function acciones(p){
 }
 
 /* ---------- Navegación entre páginas (sidebar) ---------- */
-const TITULOS={dashboard:'Dashboard',prospectos:'Prospectos',herramientas:'Herramientas',mantenimiento:'Mantenimiento'};
+const TITULOS={dashboard:'Dashboard',prospectos:'Prospectos',seguimientos:'Seguimientos',herramientas:'Herramientas',mantenimiento:'Mantenimiento'};
 document.querySelectorAll('.side-nav a[data-pantalla]').forEach(a=>{
   a.addEventListener('click',(e)=>{
     e.preventDefault();
@@ -371,10 +408,10 @@ async function loadLote(){
     return '<div class="p-card" style="border-left:3px solid '+c+'">'+
       '<div class="p-top">'+
         '<span class="p-ava" style="background:linear-gradient(135deg,'+c+',color-mix(in srgb,'+c+' 70%,#0f172a))">'+p.nombre_negocio.charAt(0)+'</span>'+
-        '<div><div class="p-name">'+p.nombre_negocio+'</div><div class="p-meta">'+p.tipo+' · '+p.whatsapp+'</div></div>'+
+        '<div><div class="p-name">'+p.nombre_negocio+scoreBadge(p)+'</div><div class="p-meta">'+p.tipo+' · '+p.whatsapp+'</div></div>'+
         badg(p.estado)+
       '</div>'+
-      (copDe(p.id)?'<div class="copy">'+copDe(p.id)+'</div>':'')+
+      copSecuencia(p.id)+
       '<div class="fotos" id="f-'+p.id+'"><span class="muted">cargando…</span></div>'+
       '<div class="p-actions">'+
         acciones(p)+
@@ -393,7 +430,7 @@ async function cargarTabla(){
     r.prospectos.map(p=>{
       const c=cColor(p.color_accent);
       return '<tr>'+
-        '<td><span class="t-name"><span class="t-dot" style="background:'+c+'"></span>'+p.nombre_negocio+'</span></td>'+
+        '<td><span class="t-name"><span class="t-dot" style="background:'+c+'"></span>'+p.nombre_negocio+'</span>'+scoreBadge(p)+'</td>'+
         '<td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+p.whatsapp+'</td>'+
         '<td>'+acciones(p)+
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo</button> '+
@@ -409,7 +446,43 @@ async function refrescar(){
   COPS=(await api('/api/copys')).copys.reduce((m,c)=>(m[c.id]=c,m),{});
   const s=await api('/api/estado');
   const st=$('#status'); st.className='pill st-'+s.estado; st.textContent=s.estado+(s.estado==='corriendo'?'…':'');
-  loadLote(); cargarTabla(); poblarSelect(); poblarMantSelect(); cargarMant();
+  loadLote(); cargarTabla(); loadSeguimientos(); poblarSelect(); poblarMantSelect(); cargarMant();
+}
+
+// ============ SEGUIMIENTOS ============
+function diasBadge(dias){
+  if(dias<=7) return '<span class="badge b-en_cola">'+dias+'d · nudge</span>';
+  if(dias<=30) return '<span class="badge b-reagendar">'+dias+'d · retoma</span>';
+  return '<span class="badge b-no_interesado" style="background:#fee2e2;color:#b91c1c">'+dias+'d · retoma en frío</span>';
+}
+
+async function loadSeguimientos(){
+  const r=await api('/api/seguimientos');
+  const box=$('#seg-list');
+  box.innerHTML=r.items.length
+    ? r.items.map(i=>{
+        return '<div class="p-card" style="border-left:3px solid '+(i.dias_desde_contacto>30?'#b91c1c':i.dias_desde_contacto>7?'#7c3aed':'#d97706')+'">'+
+          '<div class="p-top">'+
+            '<div style="flex:1"><div class="p-name">'+i.nombre_negocio+'</div><div class="p-meta">'+i.tipo+' · '+i.whatsapp+'</div></div>'+
+            diasBadge(i.dias_desde_contacto)+
+          '</div>'+
+          (i.sin_enlaces?'<div class="muted" style="margin:8px 0 0">✅ Sin enlaces — adjunta las imágenes al enviar.</div>':'<div class="muted" style="margin:8px 0 0;color:#b45309">⚠ Contiene enlace — revisar.</div>')+
+          '<div class="copy" style="margin-top:8px">'+i.retoma+'</div>'+
+          '<div class="fotos" id="seg-f-'+i.id+'"><span class="muted">cargando imágenes…</span></div>'+
+          '<div class="p-actions" style="margin-top:8px">'+
+            '<a class="btn" style="background:#25D366;color:#fff;padding:8px 14px" target="_blank" rel="noopener" href="'+i.wa_link+'">Abrir WhatsApp · retoma ↗</a>'+
+            '<button data-accion="estado" data-id="'+i.id+'" data-estado="interesado">★ Interesado</button>'+
+            '<button data-accion="estado" data-id="'+i.id+'" data-estado="reagendar">Reagendar</button>'+
+            '<button data-accion="estado" data-id="'+i.id+'" data-estado="no_interesado">No</button>'+
+          '</div></div>';
+      }).join('')
+    : '<div class="empty">Nadie en seguimiento. Cuando marques "Enviado" un prospecto, aparecerá aquí para su retoma.</div>';
+  r.items.forEach(i=>{
+    const el=$('#seg-f-'+i.id); if(!el) return;
+    fetch('/api/prospectos/'+i.id+'/fotos').then(x=>x.json()).then(f=>{
+      el.innerHTML=f.fotos.length?f.fotos.map(f=>'<img src="'+f+'" style="height:60px;border-radius:8px;border:1px solid var(--line)">').join(''):'<span class="muted">Sin capturas generadas.</span>';
+    }).catch(()=>{});
+  });
 }
 
 // ============ MANTENIMIENTO ============
@@ -506,10 +579,16 @@ function cotToggle(){
   $('#cot-productos-wrap').style.display=(tipo==='catalogo')?'':'none';
   // Para "solo mantenimiento" se exige un plan (nunca "sin").
   if(tipo==='mantenimiento' && $('#cot-mant').value==='sin') $('#cot-mant').value='mensual';
-  if(tipo!=='mantenimiento' && $('#cot-mant').value==='sin' && $('#cot-mant').options[0].selected===false && $('#cot-mant').value==='') $('#cot-mant').value='sin';
 }
 $('#cot-tipo').addEventListener('change', cotToggle);
 cotToggle();
+
+// Badge de lead score en la tarjeta del prospecto.
+function scoreBadge(p){
+  if(!p.lead_score) return '';
+  const color=p.tier_lead==='top'?'#059669':p.tier_lead==='alta'?'#0d9488':p.tier_lead==='media'?'#d97706':'#94a3b8';
+  return '<span title="'+ (p.scoring_motivo||'') +'" style="display:inline-block;background:'+color+'1a;color:'+color+';border:1px solid '+color+'33;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin-left:6px">score '+p.lead_score+'</span>';
+}
 
 async function estado(id,e){ await api('/api/prospectos/'+id+'/estado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado:e})}); refrescar(); }
 async function enviar(id){ await estado(id,'enviado'); }
@@ -614,7 +693,9 @@ document.addEventListener('click', async (ev)=>{
     const r=await api('/api/cotizador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,plan})});
     if(r.ok){
       $('#cot-out').value=r.texto;
-      $('#cot-info').textContent='Total inicial: B/. '+r.cotizacion.total.toFixed(2)+(r.cotizacion.planInfo?' (+ '+r.cotizacion.planInfo.label+' '+r.cotizacion.planInfo.dias+' días)':'');
+      $('#cot-info').textContent=r.escalonada
+        ? 'N1 Landing B/. '+r.cotizacion.totalNivel1.toFixed(2)+' · N2 Plataforma desde B/. '+r.cotizacion.desdeNivel2.toLocaleString('es-PA')+'.00'
+        : 'Total inicial: B/. '+r.cotizacion.total.toFixed(2)+(r.cotizacion.planInfo?' (+ '+r.cotizacion.planInfo.label+' '+r.cotizacion.planInfo.dias+' días)':'');
       aviso('✓ Cotización lista — cópiala y envíala.');
     } else aviso('Error al cotizar','err');
   }
@@ -664,6 +745,16 @@ document.addEventListener('click', async (ev)=>{
       URL.revokeObjectURL(a.href);
       aviso('✓ PDF descargado');
     } else aviso('Error al generar el PDF','err');
+  }
+  else if(accion==='ab-calcular'){
+    const n=Math.max(1,Math.min(50,+$('#ab-n').value||10));
+    const r=await api('/api/anti-ban?n='+n);
+    if(!r.ok){ aviso('Error al calcular el ritmo','err'); return; }
+    const c=r.config;
+    const filas=r.ritmo.map(x=>'<tr><td style="padding:7px 10px;border-bottom:1px solid var(--line);color:#334155">Envío #'+x.orden+'</td><td style="padding:7px 10px;border-bottom:1px solid var(--line);color:#334155">'+x.delay_h+'</td><td style="padding:7px 10px;border-bottom:1px solid var(--line);color:#b45309">'+(x.pausa_h?'PAUSA '+x.pausa_h:'')+'</td></tr>').join('');
+    $('#ab-out').innerHTML='<div class="copy" style="margin-top:10px">🛡 Delay base: '+r.ritmo[0].delay_h+' · cada '+c.pausaCada+' envíos pausa de '+r.ritmo.find(x=>x.pausa)?.pausa_h+'<br>⚠ El <b>mensaje 1</b> va sin enlaces/PDF/imágenes. El <b>mensaje 2</b> (muestra) solo tras la respuesta del dueño.</div>'+
+      '<div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>#</th><th>Delay</th><th>Pausa</th></tr></thead><tbody>'+filas+'</tbody></table></div>';
+    aviso('✓ Ritmo calculado para '+n+' envíos');
   }
 });
 

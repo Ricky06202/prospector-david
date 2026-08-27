@@ -183,7 +183,7 @@ async function scrapeGenerico(url: string): Promise<void> {
       direccion: direccion || "David, Chiriquí",
       coordenadas: { ...CENTRO_DAVID },
       whatsapp,
-      color_accent: accentParaTipo(tipo),
+      color_accent: accentParaTipo("Negocio local"),
       creado_en: new Date().toISOString(),
     });
   });

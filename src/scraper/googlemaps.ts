@@ -23,6 +23,7 @@ import type { Prospecto } from "../types.ts";
 import { normalizarTelefonoPA } from "../lib/telefono.ts";
 import { accentParaTipo } from "../lib/accent.ts";
 import { normalizarNombre, esWebPropia } from "../lib/dedupe.ts";
+import { calcularScore, esGiroTradicional } from "../lib/lead-scoring.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
@@ -58,7 +59,7 @@ async function scrollResultados(page: any, limite: number) {
   }
 }
 
-async function leerDetalle(page: any): Promise<{ nombre: string; tipo: string; direccion: string; telefono: string; web: string }> {
+async function leerDetalle(page: any): Promise<{ nombre: string; tipo: string; direccion: string; telefono: string; web: string; rating: number; reseñas: number }> {
   return page.evaluate(() => {
     const txt = (sels: string[]) => {
       for (const s of sels) {
@@ -74,12 +75,19 @@ async function leerDetalle(page: any): Promise<{ nombre: string; tipo: string; d
       }
       return "";
     };
+    // Rating y nº de reseñas vienen en el bloque de estrellas del panel de detalle.
+    const ratingTxt = txt(["[role='main'] .F7nice", "[role='main'] .qTYCNe", "div.fontBodyMedium > span > span[aria-hidden='true']"]);
+    const rating = Number.parseFloat(ratingTxt.replace(",", "."));
+    const reseniasTxt = txt(["[role='main'] span[aria-label*='reseña']", "[role='main'] .UY7F9", "[role='main'] a[aria-label*='reseña']"]);
+    const resenias = Number.parseInt((reseniasTxt.match(/\d[\d.,]*/) || ["0"])[0].replace(/\./g, "").replace(",", ""), 10) || 0;
     return {
       nombre: txt(["h1.DUwDvf", "h1", "[role='main'] h1"]),
       tipo: txt(["[role='main'] button[jsaction*='category']", "[role='main'] .DkEaL", "button[jsaction*='category']"]),
       direccion: txt(["button[data-item-id='address']", "[data-item-id='address']"]),
       telefono: txt(["[data-item-id^='phone']", "a[href^='tel:']"]),
       web: href(["a[data-item-id='authority']", "[data-item-id='authority'] a", "a[aria-label*='Sitio web']"]),
+      rating: Number.isFinite(rating) ? rating : 0,
+      reseñas: resenias,
     };
   });
 }
@@ -144,6 +152,13 @@ async function extraer(): Promise<Prospecto[]> {
         if (SOLO_SIN_WEB && tieneWeb) continue;
 
         const id = normalizarNombre(detalle.nombre).replace(/\s+/g, "-").slice(0, 60) || `gmaps-${encontrados.length}`;
+        const sc = calcularScore({
+          rating: detalle.rating,
+          reseñas: detalle.reseñas,
+          tiene_web: tieneWeb,
+          web_deficiente: false,
+          giro_tradicional: esGiroTradicional(detalle.tipo || ""),
+        });
         encontrados.push({
           id,
           nombre_negocio: detalle.nombre,
@@ -153,9 +168,15 @@ async function extraer(): Promise<Prospecto[]> {
           whatsapp,
           color_accent: accentParaTipo(detalle.tipo || ""),
           tiene_web: tieneWeb,
+          web: detalle.web || undefined,
+          rating: detalle.rating || undefined,
+          reseñas: detalle.reseñas || undefined,
+          lead_score: sc.pasa_filtro ? sc.score : undefined,
+          tier_lead: sc.pasa_filtro ? sc.tier : undefined,
+          scoring_motivo: sc.motivo,
           creado_en: new Date().toISOString(),
         });
-        console.log(`  + ${detalle.nombre.slice(0, 40)} · ${whatsapp} · ${tieneWeb ? "con web" : "sin web"} · coords ${coords.lat.toFixed(4)},${coords.lng.toFixed(4)}`);
+        console.log(`  + ${detalle.nombre.slice(0, 40)} · ${whatsapp} · ${tieneWeb ? "con web" : "sin web"} · ${detalle.rating || "-"}★(${detalle.reseñas || 0}) · score ${sc.pasa_filtro ? sc.score : "—"}`);
         await sleep(1600 + Math.random() * 1200);
       } catch {
         /* tarjeta inválida o panel que se cerró */

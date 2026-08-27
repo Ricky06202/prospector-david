@@ -1,6 +1,11 @@
 /**
  * Cotizador: precios configurables y generación de cotizaciones.
  * Los precios se ajustan por env (PRECIO_*); por defecto valores sugeridos.
+ *
+ * ESTRATEGIA ESCALONADA ("Caballo de Troya"):
+ *   Nivel 1 (Apertura): Landing optimizada en 24 h por $300 USD.
+ *   Nivel 2 (Upsell):   Plataforma Operativa / Dashboard a la medida desde $1,200 USD,
+ *                       bajo el paraguas y garantía de la empresa matriz.
  */
 import "dotenv/config";
 
@@ -12,6 +17,17 @@ export const PRECIOS = {
   mantenimiento: Number(process.env.PRECIO_MANTENIMIENTO || 25),
   mantenimientoTrimestral: Number(process.env.PRECIO_MANT_TRIMESTRAL || 60),
   mantenimientoSemestral: Number(process.env.PRECIO_MANT_SEMESTRAL || 100),
+  /** Nivel 2 del upsell institucional (desde). */
+  plataforma: Number(process.env.PRECIO_PLATAFORMA || 1200),
+};
+
+/** Datos de la empresa matriz que respalda el Nivel 2 (autoridad + garantía). */
+export const MATRIZ = {
+  nombre: process.env.MATRIZ_NOMBRE || "Topografía Especializada S.A.",
+  rubro: process.env.MATRIZ_RUBRO || "Empresa de ingeniería y desarrollo de software",
+  ubicacion: process.env.MATRIZ_UBICACION || "David, Chiriquí · República de Panamá",
+  garantia: process.env.MATRIZ_GARANTIA || "",
+  contacto: process.env.MATRIZ_CONTACTO || "WhatsApp 6510-4147",
 };
 
 export type PlanMantenimiento = "mensual" | "trimestral" | "semestral";
@@ -28,6 +44,7 @@ export interface Cotizacion {
   tipoLabel: string;
   baseProyecto: number;
   productos: number;
+  porProducto?: number;
   plan: string; // "sin" | PlanMantenimiento
   planInfo: { label: string; precio: number; dias: number } | null;
   total: number;
@@ -49,7 +66,7 @@ export function cotizar(tipo: TipoProyecto, productos = 0, plan = "sin"): Cotiza
   } else {
     tipoLabel = "Mantenimiento recurrente";
   }
-  const planInfo = plan !== "sin" && PLANES[plan] ? PLANES[plan] : null;
+  const planInfo = plan !== "sin" && plan in PLANES ? PLANES[plan as PlanMantenimiento] : null;
   const total = baseProyecto + (planInfo ? planInfo.precio : 0);
   return { tipo, tipoLabel, baseProyecto, productos, porProducto: PRECIOS.porProducto, plan, planInfo, total };
 }
@@ -143,7 +160,7 @@ export function textoCotizacion(
 ): string {
   const c = cotizar(tipo, productos, plan);
   const lineas: string[] = [
-    `📋 Cotización · ${nombreNegocio}`,
+    `Cotización · ${nombreNegocio}`,
     ``,
     `Proyecto: ${c.tipoLabel}`,
   ];
@@ -178,4 +195,169 @@ export function textoCotizacion(
   }
   lineas.push(`Plazos y detalles se confirman en una llamada breve. ¡Saludos!`);
   return lineas.join("\n");
+}
+
+// =====================================================================
+// COTIZACIÓN ESCALONADA (Nivel 1 + Nivel 2 / Upsell institucional)
+// =====================================================================
+
+export interface NivelUpsell {
+  tipoLabel: string;
+  desde: number;      // monto "desde"
+  entrega: string;
+  extras: string[];
+}
+
+export interface CotizacionEscalonada {
+  nivel1: Cotizacion;                 // landing (apertura)
+  nivel2: NivelUpsell;                // plataforma (upsell)
+  totalNivel1: number;
+  desdeNivel2: number;
+}
+
+/** Arma los dos niveles: Nivel 1 = landing con plan opcional; Nivel 2 = plataforma. */
+export function cotizarEscalonada(productos = 0, plan = "sin"): CotizacionEscalonada {
+  const nivel1 = cotizar("landing", 0, plan);
+  return {
+    nivel1,
+    nivel2: {
+      tipoLabel: "Plataforma Operativa / Dashboard a la Medida",
+      desde: PRECIOS.plataforma,
+      entrega: "Proyecto institucional · entrega por etapas según alcance",
+      extras: [
+        "Panel de control para pedidos, citas o tareas del negocio desde el celular",
+        "Reportes y métricas de ventas, inventario o producción en tiempo real",
+        "Usuarios y permisos para tu equipo (según rol)",
+        "Integración con WhatsApp, correo y tus herramientas actuales",
+        "Capacitación del personal y soporte dedicado",
+      ],
+    },
+    totalNivel1: nivel1.total,
+    desdeNivel2: PRECIOS.plataforma,
+  };
+}
+
+const GARANTIA_MATRIZ = [
+  `Este proyecto se ejecuta bajo el paraguas y la garantía de ${MATRIZ.nombre} (${MATRIZ.rubro}, ${MATRIZ.ubicacion}).`,
+  `Al contratar con nosotros, tu inversión queda respaldada por una empresa establecida, con contrato formal, facturación y acompañamiento durante toda la implementación.`,
+];
+
+/** Texto listo para WhatsApp del cotizador escalonado (los 2 niveles). */
+export function textoCotizacionEscalonada(nombreNegocio: string, plan = "sin", nombreCliente = "Negocio"): string {
+  const c = cotizarEscalonada(0, plan);
+  const n1 = c.nivel1;
+  const lineas: string[] = [
+    `Cotización en 2 niveles · ${nombreNegocio}`,
+    ``,
+    `──────────────────────────`,
+    `NIVEL 1 - APERTURA (entregable en 24 h)`,
+    `Landing Page optimizada · B/. ${PRECIOS.landing.toFixed(2)}`,
+    ``,
+    `  • Diseño profesional con tu identidad y colores`,
+    `  • Tu ubicación en Google Maps + botón directo de WhatsApp`,
+    `  • Se adapta a celular y computadora (móvil-first)`,
+    `  • Entregada en 24 horas desde tu confirmación`,
+  ];
+  if (n1.planInfo) {
+    lineas.push(`  • Mantenimiento ${n1.planInfo.label.toLowerCase()} (${n1.planInfo.dias} días): B/. ${n1.planInfo.precio.toFixed(2)}`);
+  } else {
+    lineas.push(`  • Mantenimiento opcional (Mensual B/. ${PLANES.mensual.precio.toFixed(2)} · Trimestral B/. ${PLANES.trimestral.precio.toFixed(2)} · Semestral B/. ${PLANES.semestral.precio.toFixed(2)})`);
+  }
+  lineas.push(
+    ``,
+    `──────────────────────────`,
+    `NIVEL 2 - UPSEL INSTITUCIONAL`,
+    `${c.nivel2.tipoLabel} · desde B/. ${PRECIOS.plataforma.toLocaleString("es-PA")}.00`,
+    `(${c.nivel2.entrega})`,
+    ``
+  );
+  for (const e of c.nivel2.extras) lineas.push(`  • ${e}`);
+  lineas.push(
+    ``,
+    `RESPALDO INSTITUCIONAL`,
+    ...GARANTIA_MATRIZ,
+    ``,
+    `El Nivel 1 te deja operando YA con tu página. El Nivel 2 digitaliza tu operación completa y es la inversión que todo negocio serio da en su siguiente paso. Ambos pueden contratarse juntos o por etapas.`,
+    ``,
+    `Plazos y detalles se confirman en una llamada breve. Sin compromiso. ¡Saludos!`
+  );
+  return lineas.join("\n");
+}
+
+/** HTML para PDF del cotizador escalonado (marca + 2 niveles + garantía de la matriz). */
+export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fecha: string): string {
+  const c = cotizarEscalonada(0, plan);
+  const n1 = c.nivel1;
+  const fila = (nombre: string, monto: string) =>
+    `<tr><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">${monto}</td></tr>`;
+
+  const filasN1 = fila("Landing Page optimizada (entregable en 24 h)", `B/. ${PRECIOS.landing.toFixed(2)}`) +
+    (n1.planInfo
+      ? fila(`Mantenimiento ${n1.planInfo.label.toLowerCase()} — ${n1.planInfo.dias} días`, `B/. ${n1.planInfo.precio.toFixed(2)}`)
+      : "");
+
+  const extrasN2 = c.nivel2.extras
+    .map((e) => `<li>${e}</li>`)
+    .join("");
+
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
+    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+    body{margin:0;color:#0f172a}
+    .brand{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;padding:20px 40px;display:flex;justify-content:space-between;align-items:center}
+    .brand .t{font-weight:800;font-size:15px;letter-spacing:.02em}
+    .brand .s{font-size:11px;color:#ccfbf1}
+    .brand .n{font-size:11px;color:#ccfbf1;text-align:right;line-height:1.5}
+    .body{padding:30px 40px}
+    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:2px solid #0d9488}
+    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em}
+    .fecha{font-size:12px;color:#64748b}
+    .nivel{border-radius:14px;padding:18px 22px;margin:18px 0}
+    .nivel h2{margin:0 0 4px;font-size:16px;font-weight:800;letter-spacing:-.01em}
+    .nivel .precio{font-size:26px;font-weight:800;letter-spacing:-.02em}
+    .nivel .sub{font-size:12px;color:#475569;margin:2px 0 10px}
+    .n1{background:#fef3c7;border:1px solid #fde68a}
+    .n2{background:#f0fdf4;border:1px solid #bbf7d0}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+    .extras{margin:10px 0 0;padding-left:20px;font-size:13px;color:#334155;line-height:1.7}
+    .extras li{margin-bottom:4px}
+    .garantia{margin-top:16px;padding:14px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;font-size:12px;color:#1e40af;line-height:1.7}
+    .garantia b{color:#1d4ed8}
+    .foot{margin-top:22px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
+  </style></head><body>
+    <div class="brand">
+      <div><div class="t">Cotización en 2 niveles</div><div class="s">${MATRIZ.nombre} · ${MATRIZ.rubro}</div></div>
+      <div class="n">${MATRIZ.nombre}<br>${MATRIZ.ubicacion}<br>${MATRIZ.contacto}</div>
+    </div>
+    <div class="body">
+      <div class="cabeza">
+        <div><div class="neg">${nombreNegocio}</div></div>
+        <div class="fecha">${fecha}</div>
+      </div>
+
+      <div class="nivel n1">
+        <h2>Nivel 1 - Apertura</h2>
+        <div class="precio">B/. ${c.totalNivel1.toFixed(2)}</div>
+        <div class="sub">Landing Page optimizada · entregable en 24 h</div>
+        <table><tbody>${filasN1}</tbody></table>
+      </div>
+
+      <div class="nivel n2">
+        <h2>Nivel 2 - Upsell institucional</h2>
+        <div class="precio">Desde B/. ${PRECIOS.plataforma.toLocaleString("es-PA")}.00</div>
+        <div class="sub">${c.nivel2.tipoLabel} · ${c.nivel2.entrega}</div>
+        <ul class="extras">${extrasN2}</ul>
+      </div>
+
+      <div class="garantia">
+        <b>Respaldo institucional</b><br>
+        ${GARANTIA_MATRIZ[0]}<br>
+        ${GARANTIA_MATRIZ[1]}
+      </div>
+
+      <div class="foot">
+        <span>Cotización sin compromiso · Válida por 15 días</span>
+        <span>${MATRIZ.nombre} · ${MATRIZ.contacto}</span>
+      </div>
+    </div>
+  </body></html>`;
 }

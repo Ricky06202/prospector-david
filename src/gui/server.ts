@@ -23,9 +23,11 @@ import {
   guardarLote,
   ROOT,
 } from "../lib/prospectos-io.ts";
-import { generarEmail, generarSeguimiento, generarRespuesta } from "../envio/deepseek.ts";
-import { PRECIOS, cotizar, textoCotizacion, htmlCotizacion } from "../lib/precios.ts";
+import { generarEmail, generarSeguimiento, generarRespuesta, generarRetomaConDeepSeek } from "../envio/deepseek.ts";
+import { PRECIOS, MATRIZ, cotizar, textoCotizacion, htmlCotizacion, cotizarEscalonada, textoCotizacionEscalonada, htmlCotizacionEscalonada } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
+import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces } from "../envio/anti-ban.ts";
+import { waLink } from "../envio/deepseek.ts";
 import { PLANES, sumaDias, diasRestantes, mensajeRenovacion } from "../lib/mantenimiento.ts";
 import type { PlanMantenimiento } from "../lib/mantenimiento.ts";
 import { launch } from "puppeteer-core";
@@ -143,39 +145,68 @@ app.post("/api/places", async (c) => {
 app.get("/api/copys", async (c) => {
   try {
     const d = JSON.parse(await readFile(join(ROOT, "output", "lista_envio.json"), "utf-8"));
-    return c.json({ ok: true, copys: d });
+    // Back-compat: antes era un array; ahora es {generado_en, config_anti_ban, ritmo_sugerido, registros}.
+    const registros = Array.isArray(d) ? d : d.registros || [];
+    return c.json({ ok: true, copys: registros, config_anti_ban: !Array.isArray(d) ? d.config_anti_ban : undefined });
   } catch {
     return c.json({ ok: true, copys: [] });
   }
 });
 
 // Cotizador: precios configurables y generación de cotizaciones con desglose.
-app.get("/api/cotizador/precios", (c) => c.json({ ok: true, precios: PRECIOS, planes: PLANES }));
+app.get("/api/cotizador/precios", (c) => c.json({ ok: true, precios: PRECIOS, matriz: MATRIZ, planes: PLANES }));
 
 app.post("/api/cotizador", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const id = String(body.id || "");
-  const tipo = String(body.tipo || "landing") as TipoProyecto;
+  const tipo = String(body.tipo || "escalonada");
   const productos = Math.max(0, Number(body.productos) || 0);
   const plan = String(body.plan || "sin");
   const lista = await cargarProspectos();
   const p = lista.find((x) => x.id === id);
   const nombre = p ? p.nombre_negocio : "Negocio";
-  const cot = cotizar(tipo, productos, plan);
-  return c.json({ ok: true, cotizacion: cot, texto: textoCotizacion(nombre, tipo, productos, plan) });
+
+  // Modo por defecto: ESCALONADA (Nivel 1 $300 + Nivel 2 $1,200 bajo la matriz).
+  if (tipo === "escalonada") {
+    const cot = cotizarEscalonada(0, plan);
+    return c.json({ ok: true, escalonada: true, cotizacion: cot, texto: textoCotizacionEscalonada(nombre, plan) });
+  }
+
+  // Modo legado (single nivel): landing/catalogo/ecommerce/mantenimiento.
+  const cot = cotizar(tipo as TipoProyecto, productos, plan);
+  return c.json({ ok: true, escalonada: false, cotizacion: cot, texto: textoCotizacion(nombre, tipo as TipoProyecto, productos, plan) });
+});
+
+// Anti-ban: config actual + plan de ritmo para N envíos (previsualización del humano).
+app.get("/api/anti-ban", (c) => {
+  const cfg = configAntiBan();
+  const n = Math.max(1, Math.min(50, Number(c.req.query("n") || 10)));
+  return c.json({
+    ok: true,
+    config: cfg,
+    ritmo: planDeRitmo(n, cfg).map((r) => ({ ...r, delay_h: formatoMs(r.delay), pausa_h: r.pausa ? formatoMs(r.pausa) : null })),
+    notas: {
+      "mensaje 1": "Apertura sin enlaces/PDF/imágenes — espera la respuesta antes de enviar la muestra.",
+      "pausa cada": `${cfg.pausaCada} envíos → detente ${formatoMs(cfg.pausaMin)}-${formatoMs(cfg.pausaMax)}`,
+    },
+  });
 });
 
 // Cotización en PDF (renderizada con Chromium).
 app.post("/api/cotizador/pdf", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const id = String(body.id || "");
-  const tipo = String(body.tipo || "landing") as TipoProyecto;
+  const tipo = String(body.tipo || "escalonada");
   const productos = Math.max(0, Number(body.productos) || 0);
   const plan = String(body.plan || "sin");
   const lista = await cargarProspectos();
   const p = lista.find((x) => x.id === id);
   const nombre = p ? p.nombre_negocio : "Negocio";
   const fecha = new Date().toLocaleDateString("es-PA", { day: "2-digit", month: "long", year: "numeric" });
+
+  const html = tipo === "escalonada"
+    ? htmlCotizacionEscalonada(nombre, plan, fecha)
+    : htmlCotizacion(nombre, tipo as TipoProyecto, productos, plan, fecha);
 
   const browser = await launch({
     executablePath: process.env.CHROMIUM_PATH || "/nix/store/rxf83sv2x0ja1hi6vdli6ijll5v15x9j-chromium-151.0.7922.173/bin/chromium",
@@ -184,10 +215,10 @@ app.post("/api/cotizador/pdf", async (c) => {
   });
   try {
     const page = await browser.newPage();
-    await page.setContent(htmlCotizacion(nombre, tipo, productos, plan, fecha), { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "networkidle0" as any });
     const pdf = await page.pdf({ format: "A4", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } });
     await browser.close();
-    return c.body(pdf, 200, {
+    return c.body(pdf as any, 200, {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="cotizacion_${id || "prospecto"}.pdf"`,
     });
@@ -278,7 +309,7 @@ app.post("/api/respuesta", async (c) => {
   return c.json({ ok: true, texto });
 });
 
-// Generador de textos: email de presentación o seguimiento para un prospecto.
+// Generador de textos: email de presentación, seguimiento o RETOMA para un prospecto.
 app.post("/api/texto", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const id = String(body.id || "");
@@ -286,8 +317,44 @@ app.post("/api/texto", async (c) => {
   const lista = await cargarProspectos();
   const p = lista.find((x) => x.id === id);
   if (!p) return c.json({ ok: false, error: "prospecto no encontrado" });
-  const texto = tipo === "seguimiento" ? await generarSeguimiento(p) : await generarEmail(p);
+  let texto: string;
+  if (tipo === "retoma") {
+    const dias = diasDesde(p.ultimo_contacto || p.enviado_en || p.creado_en) ?? 0;
+    texto = await generarRetomaConDeepSeek(p, dias);
+  } else if (tipo === "seguimiento") {
+    texto = await generarSeguimiento(p);
+  } else {
+    texto = await generarEmail(p);
+  }
   return c.json({ ok: true, texto, tipo });
+});
+
+// SEGUIMIENTOS: quienes fueron contactados pero no han cerrado, con días desde
+// el último contacto y su mensaje de retoma listo (re-envío aun tras 1 mes).
+app.get("/api/seguimientos", async (c) => {
+  const lista = await cargarProspectos();
+  const EN_SEGUIMIENTO = new Set(["enviado", "seguimiento", "reagendar"]);
+  const items = [];
+  for (const p of lista) {
+    if (!EN_SEGUIMIENTO.has(p.estado || "")) continue;
+    const base = p.ultimo_contacto || p.enviado_en || p.creado_en;
+    const dias = diasDesde(base) ?? 0;
+    const retoma = await generarRetomaConDeepSeek(p, dias);
+    items.push({
+      id: p.id,
+      nombre_negocio: p.nombre_negocio,
+      tipo: p.tipo,
+      estado: p.estado,
+      dias_desde_contacto: dias,
+      ultimo_contacto: p.ultimo_contacto || p.enviado_en,
+      retoma,
+      wa_link: waLink(p.whatsapp, retoma),
+      sin_enlaces: !contieneEnlaces(retoma),
+      whatsapp: p.whatsapp,
+    });
+  }
+  items.sort((a, b) => b.dias_desde_contacto - a.dias_desde_contacto);
+  return c.json({ ok: true, items });
 });
 
 app.get("/api/estado", async (c) => c.json(await leerStatus()));
@@ -320,7 +387,7 @@ app.get("/fotos/*", async (c) => {
   const rest = c.req.path.replace("/fotos/", "");
   try {
     const buf = await readFile(join(ROOT, "output", "screenshots", rest));
-    return c.body(buf, 200, { "Content-Type": "image/png" });
+    return c.body(buf as any, 200, { "Content-Type": "image/png" });
   } catch {
     return c.body("no encontrado", 404);
   }
@@ -355,7 +422,7 @@ app.get("/api/prospectos/:id/descargar-todo", async (c) => {
   } catch { /* sin landing */ }
 
   const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
-  return c.body(buf, 200, {
+  return c.body(buf as any, 200, {
     "Content-Type": "application/zip",
     "Content-Disposition": `attachment; filename="${id}_completo.zip"`,
   });
@@ -373,7 +440,7 @@ app.get("/api/prospectos/:id/descargar", async (c) => {
     zip.file(`${id}/${f}`, await readFile(join(dir, f)));
   }
   const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
-  return c.body(buf, 200, {
+  return c.body(buf as any, 200, {
     "Content-Type": "application/zip",
     "Content-Disposition": `attachment; filename="${id}_fotos.zip"`,
   });
@@ -387,7 +454,7 @@ app.get("/_astro/*", async (c) => {
   const file = join(DIST, "_astro", p);
   try {
     const data = await readFile(file);
-    return c.body(data, 200, { "Content-Type": MIME[extname(file)] || "application/octet-stream" });
+    return c.body(data as any, 200, { "Content-Type": MIME[extname(file)] || "application/octet-stream" });
   } catch {
     return c.body("no", 404);
   }
@@ -407,7 +474,7 @@ app.get("/prototipo/*", async (c) => {
   if (!file.startsWith(DIST)) return c.body("no", 400);
   try {
     const data = await readFile(file);
-    return c.body(data, 200, { "Content-Type": MIME[extname(file)] || "application/octet-stream" });
+    return c.body(data as any, 200, { "Content-Type": MIME[extname(file)] || "application/octet-stream" });
   } catch {
     return c.body("prototipo no generado aún", 404);
   }
