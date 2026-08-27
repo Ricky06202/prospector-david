@@ -25,7 +25,7 @@ import { normalizarTelefonoPA } from "../lib/telefono.ts";
 import { accentParaTipo } from "../lib/accent.ts";
 import { normalizarNombre, esWebPropia } from "../lib/dedupe.ts";
 import { calcularScore, esGiroTradicional, ordenarPorScore, SCORE_UMBRALES } from "../lib/lead-scoring.ts";
-import { analizarWeb } from "../lib/web-quality.ts";
+import { analizarWebsParalelo } from "../lib/web-quality.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
@@ -34,32 +34,49 @@ const DATA_FILE = join(ROOT, "data", "prospectos.json");
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
 // Lista curada de giros a lo largo de TODA LA PROVINCIA de Chiriquí (no solo David):
-// cada giro se busca "en Chiriquí" (provincia entera) y en los pueblos principales
-// (Boquete, Volcán, Bugaba, La Concepción, Puerto Armuelles, Alanje).
+// cada giro se busca "en Chiriquí" (provincia entera) y los de mayor volumen también
+// pueblo por pueblo. Incluye barridos genéricos ("negocios en X") que atrapan a
+// negocios que ninguna categoría nombra.
 const CATEGORIAS = [
-  "agropecuarias", "ferreterías", "empresas de transporte", "encomiendas",
-  "empresas de construcción", "servicios de ingeniería", "insumos agrícolas",
-  "restaurantes", "cafeterías", "salones de belleza", "barberías",
-  "gimnasios", "veterinarias", "farmacias", "clínicas médicas",
-  "clínicas dentales", "talleres mecánicos", "tiendas de repuestos",
-  "tiendas de ropa", "supermercados", "abogados", "agencias de viajes",
-  "hoteles", "panaderías", "ópticas", "electrónicos",
+  // Tradicionales (estrategia): agro, logística, construcción, servicios.
+  "agropecuarias", "insumos agrícolas", "agroservicios", "plantaciones", "procesadoras de alimentos",
+  "ferreterías", "materiales de construcción", "empresas de construcción", "servicios de ingeniería",
+  "empresas de transporte", "encomiendas", "empresas de logística",
+  // Gastronomía y consumo.
+  "restaurantes", "cafeterías", "panaderías", "supermercados", "tiendas de abarrotes", "venta de carnes",
+  // Salud y belleza.
+  "salones de belleza", "barberías", "gimnasios", "veterinarias", "farmacias", "clínicas médicas",
+  "clínicas dentales", "ópticas",
+  // Automotriz.
+  "talleres mecánicos", "tiendas de repuestos", "venta de llantas", "estética automotriz", "refrigeración y aire acondicionado",
+  // Comercio y servicios.
+  "tiendas de ropa", "tiendas de celulares", "tiendas de deportes", "papelerías", "mueblerías",
+  "joyerías", "florerías", "lavanderías", "electrónicos",
+  // Profesionales.
+  "abogados", "notarías", "servicios contables", "agencias de seguros", "inmobiliarias", "consultorías",
+  // Turismo y otros.
+  "agencias de viajes", "hoteles", "imprentas", "eventos y publicidad", "seguridad privada",
 ];
 // Categorías de mayor volumen que además se buscan pueblo por pueblo.
 const CATEGORIAS_POR_PUEBLO = [
   "restaurantes", "farmacias", "salones de belleza", "barberías",
-  "talleres mecánicos", "ferreterías", "agropecuarias", "gimnasios",
+  "talleres mecánicos", "ferreterías", "agropecuarias", "gimnasios", "tiendas de ropa",
 ];
 const PUEBLOS = ["Boquete", "Volcán", "Bugaba", "La Concepción", "Puerto Armuelles", "Alanje"];
 
 const GIROS = [
   ...CATEGORIAS.map((c) => `${c} en Chiriquí`),
   ...CATEGORIAS_POR_PUEBLO.flatMap((c) => PUEBLOS.map((p) => `${c} en ${p}, Chiriquí`)),
+  // Barridos genéricos: atrapan lo que ninguna categoría nombra.
+  "negocios en Chiriquí",
+  "empresas en Chiriquí",
+  ...PUEBLOS.map((p) => `negocios en ${p}, Chiriquí`),
 ];
 
 // Si no configuraste PLACES_QUERIES, corre toda la lista curada.
 const QUERIES = (process.env.PLACES_QUERIES || "").split(",").map((s) => s.trim()).filter(Boolean);
 const queriesFinales = QUERIES.length ? QUERIES : GIROS;
+console.log(`[places] ${queriesFinales.length} búsquedas (${QUERIES.length ? "custom PLACES_QUERIES" : "lista curada de Chiriquí"})`);
 const LIMITE = Number(process.env.PLACES_LIMITE || 60);
 const SOLO_SIN_WEB = process.env.SOLO_SIN_WEB !== "false";
 const ANALIZAR_WEB = process.env.ANALIZAR_WEB !== "false";
@@ -188,15 +205,15 @@ for (const q of queriesFinales) {
   await new Promise((r) => setTimeout(r, 600)); // límite de cuota suave
 }
 
-// ---- Análisis de calidad de la web propia (paralelo, ligero) + captura de correos ----
+// ---- Análisis de calidad de la web propia (paralelo con límite) + captura de correos ----
 const leadsEmail: { nombre: string; email: string; tipo: string; direccion: string; web: string; fuente: string }[] = [];
 if (ANALIZAR_WEB) {
-  const conWeb = extraidos.filter((p) => p.tiene_web);
-  console.log(`[places] Analizando calidad de ${conWeb.length} webs propias…`);
-  const resultados = await Promise.all(conWeb.map((p) => analizarWeb(p.web as string).then((r) => [p.id, r] as const)));
-  for (const [id, r] of resultados) {
-    const p = extraidos.find((x) => x.id === id);
-    if (!p) continue;
+  const conWeb = extraidos.filter((p) => p.tiene_web).slice(0, Number(process.env.ANALIZAR_WEB_LIMITE || 200));
+  console.log(`[places] Analizando calidad de ${conWeb.length} webs propias (pool 6)…`);
+  const analizados = await analizarWebsParalelo(conWeb, 6);
+  for (const p of conWeb) {
+    const r = analizados.get(p.id);
+    if (!r) continue;
     p.web_deficiente = r.deficiente;
     if (r.email) p.email = r.email;
     if (!r.deficiente) {
