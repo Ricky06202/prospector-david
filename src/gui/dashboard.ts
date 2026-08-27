@@ -545,9 +545,9 @@ function filtrarLista(){
   lista.innerHTML=items.join('')||'<div class="cb-item" style="color:var(--muted)">Sin resultados</div>';
   lista.classList.remove('hidden');
 }
-$('#txt-buscar').addEventListener('focus',filtrarLista);
-$('#txt-buscar').addEventListener('input',filtrarLista);
-$('#txt-buscar').addEventListener('blur',()=>setTimeout(()=>$('#txt-lista').classList.add('hidden'),150));
+function cerrarBusqueda(){
+  $('#txt-lista').classList.add('hidden');
+}
 function seleccionarItem(e){
   const it=e.target.closest('.cb-item');
   if(!it) return;
@@ -556,13 +556,19 @@ function seleccionarItem(e){
   if(!id||!pr) return;
   $('#txt-prospecto').value=id;
   $('#txt-buscar').value=pr.nombre;
-  $('#txt-lista').classList.add('hidden');
+  cerrarBusqueda();
+  $('#txt-buscar').blur(); // suelta el foco: el dropdown queda cerrado de verdad
   mostrarInfoSel();
 }
-$('#txt-lista').addEventListener('mousedown',(e)=>{ e.preventDefault(); seleccionarItem(e); });
+$('#txt-buscar').addEventListener('focus',filtrarLista);
+$('#txt-buscar').addEventListener('input',filtrarLista);
+$('#txt-buscar').addEventListener('blur',()=>setTimeout(cerrarBusqueda,150));
+$('#txt-buscar').addEventListener('keydown',(e)=>{ if(e.key==='Escape') cerrarBusqueda(); });
+// pointerdown (funciona con mouse y táctil) + click como fallback para navegadores viejos.
+$('#txt-lista').addEventListener('pointerdown',(e)=>{ e.preventDefault(); seleccionarItem(e); });
 $('#txt-lista').addEventListener('click',(e)=>{ seleccionarItem(e); });
 document.addEventListener('click',(e)=>{
-  if(!e.target.closest('.cb')) $('#txt-lista').classList.add('hidden');
+  if(!e.target.closest('.cb')) cerrarBusqueda();
 });
 function mostrarInfoSel(){
   const id=$('#txt-prospecto').value, info=$('#txt-info');
@@ -751,8 +757,9 @@ document.addEventListener('click', async (ev)=>{
     const r=await api('/api/anti-ban?n='+n);
     if(!r.ok){ aviso('Error al calcular el ritmo','err'); return; }
     const c=r.config;
+    const primerPausa=r.ritmo.find(x=>x.pausa);
     const filas=r.ritmo.map(x=>'<tr><td style="padding:7px 10px;border-bottom:1px solid var(--line);color:#334155">Envío #'+x.orden+'</td><td style="padding:7px 10px;border-bottom:1px solid var(--line);color:#334155">'+x.delay_h+'</td><td style="padding:7px 10px;border-bottom:1px solid var(--line);color:#b45309">'+(x.pausa_h?'PAUSA '+x.pausa_h:'')+'</td></tr>').join('');
-    $('#ab-out').innerHTML='<div class="copy" style="margin-top:10px">🛡 Delay base: '+r.ritmo[0].delay_h+' · cada '+c.pausaCada+' envíos pausa de '+r.ritmo.find(x=>x.pausa)?.pausa_h+'<br>⚠ El <b>mensaje 1</b> va sin enlaces/PDF/imágenes. El <b>mensaje 2</b> (muestra) solo tras la respuesta del dueño.</div>'+
+    $('#ab-out').innerHTML='<div class="copy" style="margin-top:10px">Delay base: '+r.ritmo[0].delay_h+' · cada '+c.pausaCada+' envíos pausa de '+(primerPausa?primerPausa.pausa_h:'(más de '+n+')')+'<br>El <b>mensaje 1</b> va sin enlaces/PDF/imágenes ni emojis. El <b>mensaje 2</b> (muestra con imágenes) solo tras la respuesta del dueño.</div>'+
       '<div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>#</th><th>Delay</th><th>Pausa</th></tr></thead><tbody>'+filas+'</tbody></table></div>';
     aviso('✓ Ritmo calculado para '+n+' envíos');
   }

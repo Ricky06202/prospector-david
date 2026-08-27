@@ -331,6 +331,18 @@ app.post("/api/texto", async (c) => {
 
 // SEGUIMIENTOS: quienes fueron contactados pero no han cerrado, con días desde
 // el último contacto y su mensaje de retoma listo (re-envío aun tras 1 mes).
+// CACHÉ en memoria: la GUI refresca seguido y NO debe golpear a DeepSeek en cada
+// refresco (podría congelarse). Se precarga desde output/seguimientos.json y solo
+// se genera con IA lo que no está cacheado.
+const cacheRetoma = new Map<string, string>();
+async function precargarCacheRetoma() {
+  try {
+    const d = JSON.parse(await readFile(join(ROOT, "output", "seguimientos.json"), "utf-8"));
+    for (const s of d.seguimientos || []) if (s?.id && s?.retoma) cacheRetoma.set(s.id, s.retoma);
+  } catch { /* sin cache todavía */ }
+}
+await precargarCacheRetoma();
+
 app.get("/api/seguimientos", async (c) => {
   const lista = await cargarProspectos();
   const EN_SEGUIMIENTO = new Set(["enviado", "seguimiento", "reagendar"]);
@@ -339,7 +351,11 @@ app.get("/api/seguimientos", async (c) => {
     if (!EN_SEGUIMIENTO.has(p.estado || "")) continue;
     const base = p.ultimo_contacto || p.enviado_en || p.creado_en;
     const dias = diasDesde(base) ?? 0;
-    const retoma = await generarRetomaConDeepSeek(p, dias);
+    let retoma = cacheRetoma.get(p.id);
+    if (!retoma) {
+      retoma = await generarRetomaConDeepSeek(p, dias);
+      cacheRetoma.set(p.id, retoma);
+    }
     items.push({
       id: p.id,
       nombre_negocio: p.nombre_negocio,
