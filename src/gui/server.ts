@@ -26,7 +26,7 @@ import {
 import { generarEmail, generarSeguimiento, generarRespuesta, generarRetomaConDeepSeek, generarMuestraConDeepSeek } from "../envio/deepseek.ts";
 import { PRECIOS, MATRIZ, cotizar, textoCotizacion, htmlCotizacion, cotizarEscalonada, textoCotizacionEscalonada, htmlCotizacionEscalonada } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
-import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces } from "../envio/anti-ban.ts";
+import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces, mensajeRetoma, mensajeMuestra } from "../envio/anti-ban.ts";
 import { waLink } from "../envio/deepseek.ts";
 import { PLANES, sumaDias, diasRestantes, mensajeRenovacion } from "../lib/mantenimiento.ts";
 import type { PlanMantenimiento } from "../lib/mantenimiento.ts";
@@ -392,9 +392,18 @@ app.post("/api/texto", async (c) => {
 const cacheRetoma = new Map<string, string>();
 const cacheMuestra = new Map<string, string>();
 async function precargarCacheRetoma() {
+  // Retomas ya generadas por el pipeline (output/seguimientos.json).
   try {
     const d = JSON.parse(await readFile(join(ROOT, "output", "seguimientos.json"), "utf-8"));
     for (const s of d.seguimientos || []) if (s?.id && s?.retoma) cacheRetoma.set(s.id, s.retoma);
+  } catch { /* sin cache todavía */ }
+  // Muestras (mensaje 2) ya generadas por el pipeline (output/lista_envio.json).
+  try {
+    const d = JSON.parse(await readFile(join(ROOT, "output", "lista_envio.json"), "utf-8"));
+    for (const r of d.registros || []) {
+      const m = r?.mensajes?.find((x: any) => x?.tipo === "muestra");
+      if (r?.id && m?.texto) cacheMuestra.set(r.id, m.texto);
+    }
   } catch { /* sin cache todavía */ }
 }
 await precargarCacheRetoma();
@@ -407,16 +416,9 @@ app.get("/api/seguimientos", async (c) => {
     if (!EN_SEGUIMIENTO.has(p.estado || "")) continue;
     const base = p.ultimo_contacto || p.enviado_en || p.creado_en;
     const dias = diasDesde(base) ?? 0;
-    let retoma = cacheRetoma.get(p.id);
-    if (!retoma) {
-      retoma = await generarRetomaConDeepSeek(p, dias);
-      cacheRetoma.set(p.id, retoma);
-    }
-    let muestra = cacheMuestra.get(p.id);
-    if (!muestra) {
-      muestra = await generarMuestraConDeepSeek(p);
-      cacheMuestra.set(p.id, muestra);
-    }
+    // INSTANTÁNEO: usa caché o plantilla rápida (sin DeepSeek en la carga de la lista).
+    const retoma = cacheRetoma.get(p.id) ?? mensajeRetoma(p, dias);
+    const muestra = cacheMuestra.get(p.id) ?? mensajeMuestra(p);
     items.push({
       id: p.id,
       nombre_negocio: p.nombre_negocio,
@@ -428,12 +430,35 @@ app.get("/api/seguimientos", async (c) => {
       retoma_wa_link: waLink(p.whatsapp, retoma),
       muestra,
       muestra_wa_link: waLink(p.whatsapp, muestra),
+      con_ia: cacheRetoma.has(p.id) || cacheMuestra.has(p.id),
       sin_enlaces: !contieneEnlaces(retoma) && !contieneEnlaces(muestra),
       whatsapp: p.whatsapp,
     });
   }
   items.sort((a, b) => b.dias_desde_contacto - a.dias_desde_contacto);
   return c.json({ ok: true, items });
+});
+
+// Regenera retoma + muestra de UN seguimiento con DeepSeek (bajo demanda, se cachea).
+app.post("/api/seguimientos/:id/ia", async (c) => {
+  const id = c.req.param("id");
+  const lista = await cargarProspectos();
+  const p = lista.find((x) => x.id === id);
+  if (!p) return c.json({ ok: false });
+  const dias = diasDesde(p.ultimo_contacto || p.enviado_en || p.creado_en) ?? 0;
+  const [retoma, muestra] = await Promise.all([
+    generarRetomaConDeepSeek(p, dias),
+    generarMuestraConDeepSeek(p),
+  ]);
+  cacheRetoma.set(id, retoma);
+  cacheMuestra.set(id, muestra);
+  return c.json({
+    ok: true,
+    retoma,
+    muestra,
+    retoma_wa_link: waLink(p.whatsapp, retoma),
+    muestra_wa_link: waLink(p.whatsapp, muestra),
+  });
 });
 
 app.get("/api/estado", async (c) => c.json(await leerStatus()));

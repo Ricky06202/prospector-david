@@ -482,9 +482,11 @@ async function loadSeguimientos(){
           '</div>'+
           (i.sin_enlaces?'<div class="muted" style="margin:0 0 8px">✅ Sin enlaces — adjunta las imágenes al enviar.</div>':'<div class="muted" style="margin:0 0 8px;color:#b45309">⚠ Contiene enlace — revisar.</div>')+
           '<div class="copy seg-copy" data-id="'+i.id+'" style="margin-top:0">'+i.retoma+'</div>'+
+          (i.con_ia?'':'<div class="muted" style="margin:6px 0">📄 Texto base (rápido) — pulsa "✨ IA" para una versión con DeepSeek.</div>')+
           '<div class="fotos" id="seg-f-'+i.id+'"><span class="muted">cargando imágenes…</span></div>'+
           '<div class="p-actions" style="margin-top:8px">'+
             '<a class="btn seg-wa" data-id="'+i.id+'" style="background:#25D366;color:#fff;padding:8px 14px" target="_blank" rel="noopener" href="'+i.retoma_wa_link+'">Abrir WhatsApp ↗</a>'+
+            '<button data-accion="seg-ia" data-id="'+i.id+'">✨ IA</button>'+
             '<button data-accion="estado" data-id="'+i.id+'" data-estado="interesado">★ Interesado</button>'+
             '<button data-accion="estado" data-id="'+i.id+'" data-estado="reagendar">Reagendar</button>'+
             '<button data-accion="estado" data-id="'+i.id+'" data-estado="no_interesado">No</button>'+
@@ -685,6 +687,12 @@ document.addEventListener('click', async (ev)=>{
     await api('/api/prospectos/'+id+'/prototipo',{method:'POST'});
     aviso('✓ Capturas listas — adjúntalas al enviar.');
     loadSeguimientos();
+  }
+  else if(accion==='seg-ia'){
+    aviso('⏳ Generando versión con IA de '+id+'…');
+    const r=await api('/api/seguimientos/'+id+'/ia',{method:'POST'});
+    if(r.ok){ aviso('✓ Versión IA lista.'); loadSeguimientos(); }
+    else aviso('Error generando con IA','err');
   }
   else if(accion==='seg-generar-todos'){
     aviso('⏳ Generando capturas de los que falten… (puede tardar unos minutos)');
