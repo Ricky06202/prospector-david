@@ -12,6 +12,8 @@ export interface Prospecto {
   coordenadas: Coordenadas;
   /** Número de WhatsApp con prefijo internacional obligatorio. */
   whatsapp: string;
+  /** Correo del negocio (si se pudo extraer de CAMCHI, su web o el directorio). */
+  email?: string;
   /** Clave de color para la identidad de marca (ver ACCENTS en el generador). */
   color_accent: string;
   /** true si el negocio ya revela tener sitio web propio (filtro "a ciegas digitales"). */

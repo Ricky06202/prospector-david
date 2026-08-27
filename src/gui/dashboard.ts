@@ -469,7 +469,7 @@ async function cargarTabla(){
       const c=cColor(p.color_accent);
       return '<tr>'+
         '<td><span class="t-name"><span class="t-dot" style="background:'+c+'"></span>'+p.nombre_negocio+'</span>'+scoreBadge(p)+'</td>'+
-        '<td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+p.whatsapp+'</td>'+
+        '<td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+(p.whatsapp||'')+(p.email?'<div class="muted" style="font-size:11px">'+p.email+'</div>':'')+'</td>'+
         '<td>'+acciones(p)+
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo</button> '+
         '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a>'+

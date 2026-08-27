@@ -60,6 +60,8 @@ for (const p of prospectos) {
     lead_score: p.lead_score,
     tier_lead: p.tier_lead,
     scoring_motivo: p.scoring_motivo,
+    email: p.email,
+    whatsapp: p.whatsapp,
     // Back-compat: el copy principal es la apertura (segura, sin enlaces).
     copy_whatsapp: apertura,
     mensajes: [
@@ -126,7 +128,7 @@ const tarjetas = registros
     <article style="border:1px solid #e2e8f0;border-radius:16px;padding:20px;background:#fff;display:flex;flex-direction:column;gap:12px">
       <div>
         <h3 style="margin:0;font-size:18px;color:#0f172a">${r.nombre_negocio}</h3>
-        <p style="margin:2px 0 0;font-size:13px;color:#64748b">${r.tipo}${r.lead_score ? ` · <b style="color:#0d9488">score ${r.lead_score} (${r.tier_lead})</b> · ${r.scoring_motivo}` : ""}</p>
+        <p style="margin:2px 0 0;font-size:13px;color:#64748b">${r.tipo}${r.lead_score ? ` · <b style="color:#0d9488">score ${r.lead_score} (${r.tier_lead})</b> · ${r.scoring_motivo}` : ""}${r.email ? ` · <a href="mailto:${r.email}" style="color:#2563eb">${r.email}</a>` : ""}</p>
       </div>
       ${r.mensajes
         .map(

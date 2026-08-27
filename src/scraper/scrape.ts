@@ -117,6 +117,9 @@ async function scrapeCamchi(base: string): Promise<void> {
       continue;
     }
 
+    // Correo del negocio (JSON-LD → mailto → texto del listing).
+    const email = detectarEmail(html, jsonLd, api);
+
     const tipo =
       (l.wpbdp_category || [])
         .map((id: number) => cats.get(id))
@@ -131,6 +134,7 @@ async function scrapeCamchi(base: string): Promise<void> {
       // Si el listing no trae coordenadas, se usa el centro de David (el humano afina).
       coordenadas: { ...CENTRO_DAVID },
       whatsapp,
+      email: email || undefined,
       color_accent: accentParaTipo(tipo),
       tiene_web: tieneWeb,
       creado_en: new Date().toISOString(),
@@ -156,6 +160,39 @@ function detectarWeb(html: string, jsonLd: any, origen: string): string | null {
   return encontrada;
 }
 
+/** Valida un email simple (evita capturar basura del HTML). */
+function esEmailValido(raw: string): boolean {
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(raw.trim());
+}
+
+/** Detecta el correo del negocio: JSON-LD → enlace mailto → patrón en el texto.
+ *  Filtra correos del propio directorio (camchi) y genéricos del CMS. */
+function detectarEmail(html: string, jsonLd: any, origen: string): string | null {
+  if (jsonLd?.email && esEmailValido(jsonLd.email)) return jsonLd.email.trim();
+
+  const $ = cheerio.load(html);
+  const contenedor = $(".wpbdp-single, #wpbdp-listing, .wpbdp-listing-single");
+  const objetivo = contenedor.length ? contenedor : $(".post-content");
+
+  // 1) Enlace mailto: explícito y confiable.
+  let encontrado: string | null = null;
+  objetivo.find("a[href^='mailto:']").each((_, el) => {
+    if (encontrado) return;
+    const m = ($(el).attr("href") || "").match(/^mailto:([^?]+)/i);
+    if (m && esEmailValido(m[1])) encontrado = m[1].trim();
+  });
+  if (encontrado) return encontrado;
+
+  // 2) Patrón de email en el texto del listing (filtrando el dominio del directorio).
+  const texto = objetivo.text();
+  const matches = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+  const hostDirectorio = new URL(origen).hostname.toLowerCase();
+  const bueno = matches.find(
+    (m) => esEmailValido(m) && !m.toLowerCase().endsWith(`@${hostDirectorio}`) && !/wordpress|example\.|sentry/i.test(m)
+  );
+  return bueno || null;
+}
+
 // ---------------------------------------------------------------
 // FALLBACK GENÉRICO (cheerio sobre HTML, para otros directorios)
 // ---------------------------------------------------------------
@@ -175,6 +212,16 @@ async function scrapeGenerico(url: string): Promise<void> {
       descartados++;
       return;
     }
+    // Email desde mailto o patrón dentro del elemento.
+    let email: string | null = null;
+    const mailto = $el.find("a[href^='mailto:']").first().attr("href") || "";
+    const m = mailto.match(/^mailto:([^?]+)/i);
+    if (m && esEmailValido(m[1])) email = m[1].trim();
+    if (!email) {
+      const t = $el.text();
+      const hits = t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+      email = hits.find((h) => esEmailValido(h) && !/wordpress|example\./i.test(h)) || null;
+    }
     const id = nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
     extraidos.push({
       id: id || `prospecto-${extraidos.length + 1}`,
@@ -183,6 +230,7 @@ async function scrapeGenerico(url: string): Promise<void> {
       direccion: direccion || "David, Chiriquí",
       coordenadas: { ...CENTRO_DAVID },
       whatsapp,
+      email: email || undefined,
       color_accent: accentParaTipo("Negocio local"),
       creado_en: new Date().toISOString(),
     });
