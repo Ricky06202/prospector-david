@@ -103,7 +103,15 @@ input:focus,select:focus,textarea:focus,button:focus{outline:2px solid rgba(13,1
 .copy{white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:12px;margin:12px 0;color:#334155;line-height:1.5}
 .fotos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .fotos img{height:66px;border-radius:9px;border:1px solid var(--line);cursor:zoom-in;transition:.15s}
-.fotos img:hover{transform:scale(1.04);box-shadow:var(--shadow)}
+.fotos img:hover{transform:scale(1.08);box-shadow:var(--shadow-lg);position:relative;z-index:2}
+
+/* ---------- Lightbox (lupa: ver foto grande) ---------- */
+#lightbox{position:fixed;inset:0;background:rgba(15,23,42,.82);display:none;align-items:center;justify-content:center;z-index:200;padding:24px;cursor:zoom-out}
+#lightbox.activa{display:flex}
+#lightbox img{max-width:100%;max-height:92vh;border-radius:12px;box-shadow:0 24px 80px -12px rgba(0,0,0,.6);cursor:default}
+#lightbox .lb-x{position:absolute;top:18px;right:22px;background:rgba(255,255,255,.12);border:none;color:#fff;width:42px;height:42px;border-radius:12px;font-size:22px;line-height:1;cursor:pointer}
+#lightbox .lb-x:hover{background:rgba(255,255,255,.24)}
+#lightbox .lb-lbl{position:absolute;left:0;right:0;bottom:18px;text-align:center;color:#cbd5e1;font-size:13px}
 .p-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .muted{color:var(--muted);font-size:12px}
 
@@ -326,6 +334,12 @@ tbody tr:hover{background:#f8fafc}
   </section>
 </div>
 
+<div id="lightbox" role="dialog" aria-label="Vista ampliada">
+  <button class="lb-x" data-accion="lb-cerrar">✕</button>
+  <img id="lb-img" src="" alt="Captura ampliada">
+  <div class="lb-lbl" id="lb-lbl"></div>
+</div>
+
 <script>
 const $=s=>document.querySelector(s);
 async function api(url,opts){const r=await fetch(url,opts);return r.json();}
@@ -405,6 +419,23 @@ async function cargarFotos(id){
     ? r.fotos.map(f=>'<img data-accion="foto" data-src="'+f+'" src="'+f+'">').join('')
     : '<span class="muted">Sin capturas — usa "Prototipo ↗" para regenerar.</span>';
 }
+
+/* ---------- Lightbox (lupa) ---------- */
+function abrirLightbox(src){
+  const lb=$('#lightbox'); if(!lb) return;
+  $('#lb-img').src=src;
+  $('#lb-lbl').textContent='Clic fuera o [Esc] para cerrar';
+  lb.classList.add('activa');
+  document.body.style.overflow='hidden';
+}
+function cerrarLightbox(){
+  const lb=$('#lightbox'); if(!lb) return;
+  lb.classList.remove('activa');
+  $('#lb-img').src='';
+  document.body.style.overflow='';
+}
+$('#lightbox').addEventListener('click',(e)=>{ if(e.target.id==='lightbox') cerrarLightbox(); });
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') cerrarLightbox(); });
 
 async function loadLote(){
   const r=await api('/api/prospectos?estado=en_cola');
@@ -486,6 +517,7 @@ async function loadSeguimientos(){
           '<div class="fotos" id="seg-f-'+i.id+'"><span class="muted">cargando imágenes…</span></div>'+
           '<div class="p-actions" style="margin-top:8px">'+
             '<a class="btn seg-wa" data-id="'+i.id+'" style="background:#25D366;color:#fff;padding:8px 14px" target="_blank" rel="noopener" href="'+i.retoma_wa_link+'">Abrir WhatsApp ↗</a>'+
+            '<a class="btn" href="/api/prospectos/'+i.id+'/descargar" title="Descargar las 6 imágenes">⬇ Fotos</a>'+
             '<button data-accion="seg-ia" data-id="'+i.id+'">✨ IA</button>'+
             '<button data-accion="estado" data-id="'+i.id+'" data-estado="interesado">★ Interesado</button>'+
             '<button data-accion="estado" data-id="'+i.id+'" data-estado="reagendar">Reagendar</button>'+
@@ -510,7 +542,7 @@ async function loadSeguimientos(){
     const el=$('#seg-f-'+i.id); if(!el) return;
     fetch('/api/prospectos/'+i.id+'/fotos').then(x=>x.json()).then(f=>{
       el.innerHTML=f.fotos.length
-        ? f.fotos.map(f=>'<img src="'+f+'" style="height:60px;border-radius:8px;border:1px solid var(--line)">').join('')
+        ? f.fotos.map(f=>'<img data-accion="foto" data-src="'+f+'" src="'+f+'" style="height:60px;border-radius:8px;border:1px solid var(--line)" title="Ver grande">').join('')
         : '<button data-accion="seg-prototipo" data-id="'+i.id+'">🔄 Generar capturas</button>';
     }).catch(()=>{
       el.innerHTML='<button data-accion="seg-prototipo" data-id="'+i.id+'">🔄 Generar capturas</button>';
@@ -681,7 +713,8 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='filtrar'){ cargarTabla(); }
   else if(accion==='enviar'){ enviar(id); }
   else if(accion==='estado'){ estado(id,est); }
-  else if(accion==='foto'){ window.open(b.dataset.src); }
+  else if(accion==='foto'){ abrirLightbox(b.dataset.src); }
+  else if(accion==='lb-cerrar'){ cerrarLightbox(); }
   else if(accion==='seg-prototipo'){
     aviso('⏳ Generando prototipo y capturas de '+id+'… (~15s)');
     await api('/api/prospectos/'+id+'/prototipo',{method:'POST'});
@@ -726,7 +759,7 @@ document.addEventListener('click', async (ev)=>{
       const box=$('#txt-fotos');
       if(tipo==='muestra'){
         const f=await api('/api/prospectos/'+pid+'/fotos');
-        box.innerHTML=f.fotos.length?f.fotos.map(f=>'<img src="'+f+'" style="height:72px;border-radius:9px;border:1px solid var(--line)">').join(''):'<span class="muted">Sin capturas — genera primero el prototipo.</span>';
+        box.innerHTML=f.fotos.length?f.fotos.map(f=>'<img data-accion="foto" data-src="'+f+'" src="'+f+'" style="height:72px;border-radius:9px;border:1px solid var(--line)" title="Ver grande">').join(''):'<span class="muted">Sin capturas — genera primero el prototipo.</span>';
       } else { box.innerHTML=''; }
     } else aviso('Error al generar','err');
   }
