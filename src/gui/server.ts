@@ -480,7 +480,7 @@ app.post("/api/prospectos/:id/estado", async (c) => {
 app.get("/api/prospectos/:id/fotos", async (c) => {
   const id = c.req.param("id");
   try {
-    const archivos = (await readdir(join(ROOT, "output", "screenshots", id))).filter((f) => f.endsWith(".png")).sort();
+    const archivos = (await readdir(join(ROOT, "output", "screenshots", id))).filter((f) => /\.(png|jpe?g|webp)$/i.test(f)).sort();
     return c.json({ ok: true, fotos: archivos.map((f) => `/fotos/${id}/${f}`) });
   } catch {
     return c.json({ ok: true, fotos: [] });
@@ -508,7 +508,7 @@ app.get("/api/prospectos/:id/descargar-todo", async (c) => {
 
   const fotosDir = join(ROOT, "output", "screenshots", id);
   try {
-    for (const f of (await readdir(fotosDir)).filter((x) => x.endsWith(".png"))) {
+    for (const f of (await readdir(fotosDir)).filter((x) => /\.(png|jpe?g|webp)$/i.test(x))) {
       zip.file(`${id}/fotos/${f}`, await readFile(join(fotosDir, f)));
     }
   } catch { /* sin fotos */ }
@@ -537,7 +537,7 @@ app.get("/api/prospectos/:id/descargar", async (c) => {
   const id = c.req.param("id");
   const dir = join(ROOT, "output", "screenshots", id);
   if (!existsSync(dir)) return c.body("sin fotos", 404);
-  const archivos = (await readdir(dir)).filter((f) => f.endsWith(".png"));
+  const archivos = (await readdir(dir)).filter((f) => /\.(png|jpe?g|webp)$/i.test(f));
 
   const zip = new JSZip();
   for (const f of archivos) {
