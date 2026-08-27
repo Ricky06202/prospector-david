@@ -122,8 +122,9 @@ function tipoLegible(types: string[]): string {
 
 const extraidos: Prospecto[] = [];
 let descartados = 0;        // sin nombre/teléfono
+let duplicados = 0;         // ya existían en la base (teléfono/nombre)
 let sinReputacion = 0;      // rating o reseñas bajo el umbral
-let conWebBuena = 0;        // web propia en buen estado
+let conWebBuena = 0;        // web propia en buen estado → track upsell
 let fallaScoring = 0;       // no pasa el puntaje mínimo
 
 /**
@@ -177,7 +178,39 @@ async function buscarTexto(q: string): Promise<any[]> {
   return resultados.slice(0, LIMITE);
 }
 
-for (const q of queriesFinales) {
+// ---- Planificador inteligente de búsquedas ----
+// Recuerda qué queries ya se corrieron y si fueron productivas. Las agotadas
+// (0 nuevos) entran en COOLDOWN (PLACES_COOLDOWN_DIAS=30) y NO se re-corren hasta
+// que pase el período → ahorra cuota. Las nunca corridas van PRIMERO.
+const COOLDOWN_DIAS = Number(process.env.PLACES_COOLDOWN_DIAS || 30);
+const ESTADO_FILE = join(ROOT, "output", "places_estado.json");
+interface QueryEstado { query: string; ultima_corrida?: string; resultados?: number; nuevos?: number; }
+const estadoPrev: QueryEstado[] = await readFile(ESTADO_FILE, "utf-8").then((t) => JSON.parse(t)).catch(() => []);
+const estadoPorQuery = new Map(estadoPrev.map((e) => [e.query, e]));
+const nuevosPorQuery = new Map<string, number>();
+
+function queryDebida(q: string): boolean {
+  const e = estadoPorQuery.get(q);
+  if (!e?.ultima_corrida) return true; // nunca corrida → nueva
+  const dias = (Date.now() - new Date(e.ultima_corrida).getTime()) / 86400000;
+  if ((e.nuevos ?? 0) > 0) return dias >= 1; // productiva → se re-corre al día siguiente
+  return dias >= COOLDOWN_DIAS;               // agotada → esperar el cooldown
+}
+const aCorrer = queriesFinales.filter(queryDebida);
+const prioridad = (q: string) => {
+  const e = estadoPorQuery.get(q);
+  if (!e?.ultima_corrida) return 0;                     // nunca corrida
+  return (e.nuevos ?? 0) > 0 ? 1 : 2;                   // productiva → agotada
+};
+aCorrer.sort((a, b) => prioridad(a) - prioridad(b));
+console.log(`[places] Plan: ${aCorrer.length} búsquedas a correr (${queriesFinales.length - aCorrer.length} en cooldown por ya agotadas)`);
+
+// Previos + sets de dedup cargados ANTES del loop (para contar nuevos por query).
+const previos: Prospecto[] = await readFile(DATA_FILE, "utf-8").then((t) => JSON.parse(t)).catch(() => []);
+const porTelefono = new Set(previos.map((p) => p.whatsapp));
+const porNombre = new Set(previos.map((p) => normalizarNombre(p.nombre_negocio)));
+
+for (const q of aCorrer) {
   console.log(`[places] Buscando: ${q}`);
   const lugares = await buscarTexto(q);
   console.log(`[places] ${lugares.length} resultados`);
@@ -191,6 +224,16 @@ for (const q of queriesFinales) {
       descartados++;
       continue;
     }
+    // Dedup temprano (contra previos y lo ya añadido): solo candidatos nuevos.
+    const nombreN = normalizarNombre(nombre);
+    if (porTelefono.has(whatsapp) || porNombre.has(nombreN)) {
+      duplicados++;
+      continue;
+    }
+    porTelefono.add(whatsapp);
+    porNombre.add(nombreN);
+    nuevosPorQuery.set(q, (nuevosPorQuery.get(q) || 0) + 1);
+
     const tipo = tipoLegible(l.types || []);
     const tieneWebRaw = l.websiteUri && esWebPropia(l.websiteUri, "https://www.google.com/maps");
     const tieneWeb = Boolean(tieneWebRaw);
@@ -216,6 +259,13 @@ for (const q of queriesFinales) {
       creado_en: new Date().toISOString(),
     });
   }
+  // Registra el estado de esta query (para el planificador del próximo run).
+  estadoPorQuery.set(q, {
+    query: q,
+    ultima_corrida: new Date().toISOString(),
+    resultados: lugares.length,
+    nuevos: nuevosPorQuery.get(q) || 0,
+  });
   await new Promise((r) => setTimeout(r, 600)); // límite de cuota suave
 }
 
@@ -295,7 +345,7 @@ const finales = TOPN > 0 ? ordenados.slice(0, TOPN) : ordenados;
 const descartadosPorTop = ordenados.length - finales.length;
 
 console.log(
-  `[places] Modo: ${SCORE_UMBRALES.SCORE_MODO} · Sin nombre/teléfono: ${descartados} · ` +
+  `[places] Modo: ${SCORE_UMBRALES.SCORE_MODO} · Sin nombre/teléfono: ${descartados} · Duplicados: ${duplicados} · ` +
   `Web buena → UPSEL: ${upsells.length} · Sin reputación: ${sinReputacion} · ` +
   `No pasa score: ${fallaScoring} · Top descartado: ${descartadosPorTop}`
 );
@@ -304,21 +354,14 @@ for (const p of finales) {
   console.log(`  + [${p.tipo_lead === "upsell" ? "UPSEL" : p.tier_lead}] ${p.nombre_negocio.slice(0, 36)} · ${p.tipo_lead === "upsell" ? "web buena" : `score ${p.lead_score} · ${p.tiene_web ? "web deficiente" : "sin web"}`}`);
 }
 
-// ---- Fusión con dedup (los mejores leads entran primero) ----
-const previos: Prospecto[] = await readFile(DATA_FILE, "utf-8").then((t) => JSON.parse(t)).catch(() => []);
+// ---- Fusión: los candidatos ya se deduplicaron contra previos en el loop. ----
 const mapa = new Map(previos.map((p) => [p.id, p]));
-const porTelefono = new Set(previos.map((p) => p.whatsapp));
-const porNombre = new Set(previos.map((p) => normalizarNombre(p.nombre_negocio)));
-let agregados = 0;
-for (const p of finales) {
-  if (porTelefono.has(p.whatsapp) || porNombre.has(normalizarNombre(p.nombre_negocio))) continue;
-  mapa.set(p.id, p);
-  porTelefono.add(p.whatsapp);
-  porNombre.add(normalizarNombre(p.nombre_negocio));
-  agregados++;
-}
+for (const p of finales) mapa.set(p.id, p);
 await writeFile(DATA_FILE, JSON.stringify([...mapa.values()], null, 2), "utf-8");
-console.log(`[places] Leads: ${finales.length} · Agregados nuevos: ${agregados} · Total: ${mapa.size}`);
+console.log(`[places] Leads: ${finales.length} (landing+upsell) · Nuevos: ${finales.length} · Duplicados: ${duplicados} · Total: ${mapa.size}`);
+
+// Guarda el estado de queries para el planificador.
+await writeFile(ESTADO_FILE, JSON.stringify([...estadoPorQuery.values()], null, 2), "utf-8");
 
 // ---- Base de EMAILS (para email-outreach: sirve aunque el negocio tenga web) ----
 const EMAILS_FILE = join(ROOT, "data", "emails.json");
