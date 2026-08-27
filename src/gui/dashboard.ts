@@ -702,20 +702,20 @@ document.addEventListener('click', async (ev)=>{
   }
   else if(accion==='scrape'){
     aviso('⏳ Scrapeando CAMCHI… (2-3 min)');
-    await api('/api/scrape',{method:'POST'});
-    aviso('✓ Scrapeo CAMCHI terminado. Ve a Prospectos y filtra por "Nuevos".');
+    const r=await api('/api/scrape',{method:'POST'});
+    aviso(r.ok?'✓ Scrapeo CAMCHI terminado. Ve a Prospectos y filtra por "Nuevos".':('✗ Error: '+(r.error||'desconocido')), r.ok?'':'err');
     refrescar();
   }
   else if(accion==='gmaps'){
     aviso('⏳ Scrapeando Google Maps… (lento, con pausas anti-captcha)');
-    await api('/api/gmaps',{method:'POST'});
-    aviso('✓ Scrapeo Google Maps terminado.');
+    const r=await api('/api/gmaps',{method:'POST'});
+    aviso(r.ok?'✓ Scrapeo Google Maps terminado.':('✗ Error: '+(r.error||'desconocido')), r.ok?'':'err');
     refrescar();
   }
   else if(accion==='places'){
     aviso('⏳ Scrapeando Google Places… (API oficial, rápido)');
-    await api('/api/places',{method:'POST'});
-    aviso('✓ Scrapeo Google Places terminado.');
+    const r=await api('/api/places',{method:'POST'});
+    aviso(r.ok?'✓ Scrapeo Google Places terminado.':('✗ Error: '+(r.error||'desconocido')), r.ok?'':'err');
     refrescar();
   }
   else if(accion==='recargar'){ aviso('↻ Recargado'); refrescar(); }

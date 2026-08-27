@@ -5,3 +5,5 @@ output/
 *.log
 # Datos reales de prospectos (contienen números de teléfono) — no al repo público.
 data/prospectos.json
+# Base de correos de negocios (datos de contacto) — no al repo público.
+data/emails.json

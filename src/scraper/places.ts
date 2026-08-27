@@ -129,12 +129,23 @@ let fallaScoring = 0;       // no pasa el puntaje mínimo
 /**
  * Busca con PAGINACIÓN: la API devuelve máx 20 por petición pero permite seguir
  * con nextPageToken hasta 3 páginas (60/búsqueda). Sin esto perdíamos 2/3 del pool.
+ * Respeta un PRESUPUESTO total de requests (PLACES_REQUESTS_MAX) y aborta con
+ * mensaje claro si Google devuelve 429 (cuota diaria agotada).
  */
+const REQUESTS_MAX = Number(process.env.PLACES_REQUESTS_MAX || 300);
+let requestsHechos = 0;
+let quotaExcedida = false;
+
 async function buscarTexto(q: string): Promise<any[]> {
+  if (quotaExcedida) return [];
   const resultados: any[] = [];
   let nextPageToken: string | undefined;
   let paginas = 0;
   do {
+    if (requestsHechos >= REQUESTS_MAX) {
+      console.warn(`[places] Presupuesto de ${REQUESTS_MAX} requests alcanzado — deteniendo.`);
+      break;
+    }
     const body: Record<string, unknown> = { textQuery: q, pageSize: 20 };
     if (nextPageToken) body.pageToken = nextPageToken;
     const res = await fetch(`https://places.googleapis.com/v1/places:searchText?languageCode=es`, {
@@ -146,6 +157,12 @@ async function buscarTexto(q: string): Promise<any[]> {
       },
       body: JSON.stringify(body),
     });
+    requestsHechos++;
+    if (res.status === 429) {
+      quotaExcedida = true;
+      console.error("[places] ⚠ CUOTA DIARIA DE GOOGLE AGOTADA (HTTP 429). Sube la cuota en Google Cloud Console (APIs & Services → Quotas → Places API → SearchText per day) o espera al reset de medianoche.");
+      break;
+    }
     if (!res.ok) {
       console.warn(`[places] Error ${res.status}: ${(await res.text()).slice(0, 200)}`);
       break;
@@ -164,6 +181,7 @@ for (const q of queriesFinales) {
   console.log(`[places] Buscando: ${q}`);
   const lugares = await buscarTexto(q);
   console.log(`[places] ${lugares.length} resultados`);
+  if (quotaExcedida) break; // cuota diaria agotada: no tiene sentido seguir
 
   for (const l of lugares.slice(0, LIMITE)) {
     const nombre = l.displayName?.text || "";
@@ -317,3 +335,13 @@ for (const e of leadsEmail) {
 }
 await writeFile(EMAILS_FILE, JSON.stringify(emailsFinales, null, 2), "utf-8");
 console.log(`[places] Emails: ${leadsEmail.length} capturados · Nuevos: ${emailsNuevos} · Total en data/emails.json: ${emailsFinales.length}`);
+
+// Señala a la GUI el error de cuota (la API rechaza todo con 429).
+if (quotaExcedida) {
+  await writeFile(
+    join(ROOT, "output", "places_error.txt"),
+    "Cuota diaria de Google Places agotada (HTTP 429). Sube la cuota en Google Cloud Console (APIs & Services → Quotas → Places API → SearchText per day) o espera al reset de medianoche.",
+    "utf-8"
+  );
+  process.exit(2);
+}

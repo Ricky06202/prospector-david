@@ -181,20 +181,31 @@ app.post("/api/seguimientos/generar-capturas", async (c) => {
   return c.json({ ok: true, generados: faltan.length });
 });
 
-// Scrapear desde la GUI (ejecuta el script y reporta progreso en /api/estado)
+// Scrapear desde la GUI (ejecuta el script y reporta progreso en /api/estado).
+// Devuelve el resultado real (incluido el error de cuota de Places) para mostrarlo.
 app.post("/api/scrape", async (c) => {
   await ejecutarScript("scrape");
-  return c.json({ ok: true });
+  const s = await leerStatus();
+  return c.json({ ok: s.estado !== "error", error: s.error });
 });
 
 app.post("/api/gmaps", async (c) => {
   await ejecutarScript("gmaps");
-  return c.json({ ok: true });
+  const s = await leerStatus();
+  return c.json({ ok: s.estado !== "error", error: s.error });
 });
 
 app.post("/api/places", async (c) => {
   await ejecutarScript("places");
-  return c.json({ ok: true });
+  const s = await leerStatus();
+  let error = s.error;
+  // Mensaje legible del error de cuota (lo escribe el script en places_error.txt).
+  if (s.estado === "error") {
+    try {
+      error = (await readFile(join(ROOT, "output", "places_error.txt"), "utf-8")).trim() || error;
+    } catch { /* sin detalle extra */ }
+  }
+  return c.json({ ok: s.estado !== "error", error });
 });
 
 app.get("/api/copys", async (c) => {
