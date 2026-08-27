@@ -142,6 +142,42 @@ app.post("/api/prospectos/:id/prototipo", async (c) => {
   return c.json({ ok: true });
 });
 
+// Capturas disponibles de un prospecto (para saber si falta regenerar).
+async function cuentaCapturas(id: string): Promise<number> {
+  try {
+    const files = await readdir(join(ROOT, "output", "screenshots", id));
+    return files.filter((f) => /\.(png|jpe?g|webp)$/i.test(f)).length;
+  } catch {
+    return 0;
+  }
+}
+
+// Regenera las capturas de TODOS los prospectos en seguimiento que no tienen imágenes.
+app.post("/api/seguimientos/generar-capturas", async (c) => {
+  const lista = await cargarProspectos();
+  const EN = new Set(["enviado", "seguimiento", "reagendar", "interesado"]);
+  const faltan: string[] = [];
+  for (const p of lista) {
+    if (!EN.has(p.estado || "")) continue;
+    if ((await cuentaCapturas(p.id)) === 0) faltan.push(p.id);
+  }
+  if (!faltan.length) return c.json({ ok: true, generados: 0 });
+  const lotePrevio = await leerLote();
+  await guardarLote(faltan);
+  try {
+    for (const paso of ["build:landings", "capturar"]) {
+      await new Promise<void>((resolve, reject) => {
+        const ch = spawn("bun", ["run", paso], { cwd: ROOT, stdio: "inherit" });
+        ch.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`${paso} falló (${code})`))));
+        ch.on("error", reject);
+      });
+    }
+  } finally {
+    await guardarLote(lotePrevio);
+  }
+  return c.json({ ok: true, generados: faltan.length });
+});
+
 // Scrapear desde la GUI (ejecuta el script y reporta progreso en /api/estado)
 app.post("/api/scrape", async (c) => {
   await ejecutarScript("scrape");

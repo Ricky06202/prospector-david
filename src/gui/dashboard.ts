@@ -216,6 +216,9 @@ tbody tr:hover{background:#f8fafc}
     <div class="card">
       <h2>📡 Seguimientos</h2>
       <p class="sub">Quienes fueron contactados pero no respondieron (ni leyeron). Re-envía su mensaje de retoma cuando quieras — aun después de un mes. En David: solo imágenes, cero enlaces.</p>
+      <div class="row" style="margin-bottom:12px">
+        <button data-accion="seg-generar-todos">🔄 Generar capturas de los que falten</button>
+      </div>
       <div id="seg-list"><div class="empty">Cargando…</div></div>
     </div>
   </section>
@@ -504,8 +507,12 @@ async function loadSeguimientos(){
   r.items.forEach(i=>{
     const el=$('#seg-f-'+i.id); if(!el) return;
     fetch('/api/prospectos/'+i.id+'/fotos').then(x=>x.json()).then(f=>{
-      el.innerHTML=f.fotos.length?f.fotos.map(f=>'<img src="'+f+'" style="height:60px;border-radius:8px;border:1px solid var(--line)">').join(''):'<span class="muted">Sin capturas generadas.</span>';
-    }).catch(()=>{});
+      el.innerHTML=f.fotos.length
+        ? f.fotos.map(f=>'<img src="'+f+'" style="height:60px;border-radius:8px;border:1px solid var(--line)">').join('')
+        : '<button data-accion="seg-prototipo" data-id="'+i.id+'">🔄 Generar capturas</button>';
+    }).catch(()=>{
+      el.innerHTML='<button data-accion="seg-prototipo" data-id="'+i.id+'">🔄 Generar capturas</button>';
+    });
   });
 }
 
@@ -673,6 +680,18 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='enviar'){ enviar(id); }
   else if(accion==='estado'){ estado(id,est); }
   else if(accion==='foto'){ window.open(b.dataset.src); }
+  else if(accion==='seg-prototipo'){
+    aviso('⏳ Generando prototipo y capturas de '+id+'… (~15s)');
+    await api('/api/prospectos/'+id+'/prototipo',{method:'POST'});
+    aviso('✓ Capturas listas — adjúntalas al enviar.');
+    loadSeguimientos();
+  }
+  else if(accion==='seg-generar-todos'){
+    aviso('⏳ Generando capturas de los que falten… (puede tardar unos minutos)');
+    const r=await api('/api/seguimientos/generar-capturas',{method:'POST'});
+    aviso(r.generados? '✓ Capturas generadas para '+r.generados+' prospectos.':'Nada que generar — todos ya tienen capturas.');
+    loadSeguimientos();
+  }
   else if(accion==='prototipo'){
     const win=window.open('','_blank');
     const abrir=()=>{ if(win){ win.location='/prototipo/'+id+'/'; } else { window.open('/prototipo/'+id+'/','_blank'); } };
