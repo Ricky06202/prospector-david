@@ -12,9 +12,35 @@ export interface ResultadoWeb {
   deficiente: boolean;
   score: number; // 0-100 (0 = pésima, 100 = buena)
   motivo: string;
+  /** Correo de contacto extraído de la web del negocio (mailto: o patrón en el HTML). */
+  email?: string | null;
 }
 
 const MARCADORES_VACIO = /(coming soon|pr[óo]ximamente|en construcci[óo]n|under construction|pagina en mantenimiento|sitio en construcci[óo]n|disponible pronto)/i;
+
+/** Filtra correos falsos (archivos de imagen, genéricos del CMS, etc.). */
+export function esEmailValido(raw: string): boolean {
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(raw.trim());
+}
+
+/** Extrae el correo de contacto del HTML de la web (mailto: primero, luego patrón).
+ *  Ignora scripts/styles (evita correos incrustados en JS) y archivos de imagen. */
+function extraerEmail(html: string): string | null {
+  const mailto = html.match(/href=["']mailto:([^"'?]+)/i);
+  if (mailto && esEmailValido(mailto[1])) return mailto[1].trim();
+
+  const limpio = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ");
+  const matches = limpio.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+  const bueno = matches.find(
+    (m) =>
+      esEmailValido(m) &&
+      !/(\.png|\.jpe?g|\.webp|\.gif|\.svg|\.css|\.js|@2x|@3x|wordpress|example\.|sentry|wixpress|schema\.org|\.min\.)/i.test(m)
+  );
+  return bueno || null;
+}
 
 /**
  * Clasifica una URL. Devuelve { accesible:false, deficiente:true } si la web
@@ -65,6 +91,7 @@ export async function analizarWeb(
       deficiente,
       score: Math.max(0, score),
       motivo: deficiente ? problemas.join(" · ") : "Web en buen estado",
+      email: extraerEmail(html),
     };
   } catch {
     // Caída, timeout o DNS — tratada como deficiente (sigue siendo lead).

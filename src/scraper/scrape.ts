@@ -100,7 +100,7 @@ async function scrapeCamchi(base: string): Promise<void> {
 
   for (const { l, jsonLd, html } of resultados) {
     const nombre = jsonLd?.name || l.title?.rendered || "";
-    const telefonoRaw = jsonLd?.telephone || "";
+    const telefonoRaw = detectarTelefono(html, jsonLd);
     const direccion = (jsonLd?.address?.streetAddress || "") + (jsonLd?.address?.addressLocality ? `, ${jsonLd.address.addressLocality}` : "");
 
     const whatsapp = normalizarTelefonoPA(telefonoRaw);
@@ -140,6 +140,30 @@ async function scrapeCamchi(base: string): Promise<void> {
       creado_en: new Date().toISOString(),
     });
   }
+}
+
+/** Detecta el teléfono del negocio: JSON-LD → tel: link → campo del plugin → regex.
+ *  CAMCHI casi nunca lo pone en el JSON-LD: vive en campos tipo [class*=phone]. */
+function detectarTelefono(html: string, jsonLd: any): string {
+  if (jsonLd?.telephone && /[0-9]/.test(jsonLd.telephone)) return String(jsonLd.telephone);
+
+  const $ = cheerio.load(html);
+  // 1) Enlace tel:
+  const telHref = $("a[href^='tel:']").first().attr("href") || "";
+  const mTel = telHref.match(/^tel:([+\d\s()-]+)/i);
+  if (mTel && /[0-9]/.test(mTel[1])) return mTel[1].trim();
+
+  // 2) Campo del plugin Business Directory (contiene "phone"/"telefono").
+  const campo = $("[class*='phone'], [class*='telefono']").first().text().trim();
+  if (campo && /[0-9]{7,}/.test(campo)) return campo;
+
+  // 3) Regex panameño en el contenedor del listing (o body como último recurso).
+  const contenedor = $(".wpbdp-single, #wpbdp-listing, .wpbdp-listing-single");
+  const objetivo = contenedor.length ? contenedor : $("body");
+  const re = /(?:\+?\(?507\)?[\s.-]?)?(?:6\d{2}|[27-9]\d{2})[\s.-]?\d{4}/g;
+  const hits = objetivo.text().match(re);
+  if (hits && hits.length) return hits[0];
+  return "";
 }
 
 /** Detecta si el listing revela un sitio web propio (dominio externo, no red social).

@@ -188,7 +188,8 @@ for (const q of queriesFinales) {
   await new Promise((r) => setTimeout(r, 600)); // límite de cuota suave
 }
 
-// ---- Análisis de calidad de la web propia (paralelo, ligero) ----
+// ---- Análisis de calidad de la web propia (paralelo, ligero) + captura de correos ----
+const leadsEmail: { nombre: string; email: string; tipo: string; direccion: string; web: string; fuente: string }[] = [];
 if (ANALIZAR_WEB) {
   const conWeb = extraidos.filter((p) => p.tiene_web);
   console.log(`[places] Analizando calidad de ${conWeb.length} webs propias…`);
@@ -197,11 +198,23 @@ if (ANALIZAR_WEB) {
     const p = extraidos.find((x) => x.id === id);
     if (!p) continue;
     p.web_deficiente = r.deficiente;
+    if (r.email) p.email = r.email;
     if (!r.deficiente) {
       // Web en buen estado → pierde el estatus de lead (como antes).
       p.lead_score = 0;
     }
-    console.log(`  · ${p.nombre_negocio.slice(0, 36)} → ${r.motivo} (${r.score}/100)`);
+    // Correo capturado → base de email-outreach (sirve también para negocios con web).
+    if (r.email) {
+      leadsEmail.push({
+        nombre: p.nombre_negocio,
+        email: r.email,
+        tipo: p.tipo,
+        direccion: p.direccion,
+        web: p.web || "",
+        fuente: "places",
+      });
+    }
+    console.log(`  · ${p.nombre_negocio.slice(0, 36)} → ${r.motivo} (${r.score}/100)${r.email ? " · email ✓" : ""}`);
   }
 }
 
@@ -265,3 +278,19 @@ for (const p of finales) {
 }
 await writeFile(DATA_FILE, JSON.stringify([...mapa.values()], null, 2), "utf-8");
 console.log(`[places] Leads: ${finales.length} · Agregados nuevos: ${agregados} · Total: ${mapa.size}`);
+
+// ---- Base de EMAILS (para email-outreach: sirve aunque el negocio tenga web) ----
+const EMAILS_FILE = join(ROOT, "data", "emails.json");
+const emailsPrevios = await readFile(EMAILS_FILE, "utf-8").then((t) => JSON.parse(t)).catch(() => []);
+const porEmail = new Set((emailsPrevios as any[]).map((e: any) => (e.email || "").toLowerCase()));
+const emailsFinales = [...(emailsPrevios as any[])];
+let emailsNuevos = 0;
+for (const e of leadsEmail) {
+  const k = e.email.toLowerCase();
+  if (porEmail.has(k)) continue;
+  porEmail.add(k);
+  emailsFinales.push({ ...e, creado_en: new Date().toISOString() });
+  emailsNuevos++;
+}
+await writeFile(EMAILS_FILE, JSON.stringify(emailsFinales, null, 2), "utf-8");
+console.log(`[places] Emails: ${leadsEmail.length} capturados · Nuevos: ${emailsNuevos} · Total en data/emails.json: ${emailsFinales.length}`);
