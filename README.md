@@ -118,6 +118,17 @@ acciones (Interesado / Reagendar / No). Así puedes re-enviar la muestra a un cl
 no respondió, aunque haya pasado un mes. Los datos viven en `output/seguimientos.json` y en
 el estado `seguimiento` de cada prospecto (el reloj parte de `ultimo_contacto`).
 
+### Flujo completo de envío (día a día)
+
+1. **Preparar lote** (10 nuevos) → **Generar capturas y reporte**.
+2. Envía el **mensaje 1** (apertura, sin enlaces) a todos, abriendo cada `wa.me`.
+   Luego pulsa **"✓ Marcar todos como Enviado"** (o marca uno por uno).
+3. Cada tarjeta de la pestaña **Seguimientos** tiene un selector:
+   - **Retoma (no respondió)** → mensaje adaptado a los días + imágenes.
+   - **Mensaje 2 · Muestra (respondió)** → cuando el cliente te responde, usa esta opción
+     para enviarle la muestra con las 6 imágenes.
+4. El que responde → lo pasas a **Interesado** → cierras con el cotizador escalonado.
+
 ## 5. Reglas del scraper (camchi y Places)
 
 - Descubre listings vía **API REST de WordPress** (`wpbdp_listing`) o la **Places API (New)**.

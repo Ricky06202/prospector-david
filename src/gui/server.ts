@@ -23,7 +23,7 @@ import {
   guardarLote,
   ROOT,
 } from "../lib/prospectos-io.ts";
-import { generarEmail, generarSeguimiento, generarRespuesta, generarRetomaConDeepSeek } from "../envio/deepseek.ts";
+import { generarEmail, generarSeguimiento, generarRespuesta, generarRetomaConDeepSeek, generarMuestraConDeepSeek } from "../envio/deepseek.ts";
 import { PRECIOS, MATRIZ, cotizar, textoCotizacion, htmlCotizacion, cotizarEscalonada, textoCotizacionEscalonada, htmlCotizacionEscalonada } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
 import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces } from "../envio/anti-ban.ts";
@@ -100,6 +100,22 @@ app.post("/api/lote/vaciar", async (c) => {
   await guardarProspectos(lista.map((p) => (lote.includes(p.id) ? { ...p, estado: "nuevo" } : p)));
   await writeFile(join(ROOT, "output", "lote_actual.json"), "[]", "utf-8");
   return c.json({ ok: true });
+});
+
+// Marca TODOS los del lote como "enviado" de una vez (el humano ya mandó el mensaje 1).
+app.post("/api/lote/enviar-todos", async (c) => {
+  const lista = await cargarProspectos();
+  const lote = await leerLote();
+  const ahora = new Date().toISOString();
+  const ids = new Set(lote);
+  const act = lista.map((p) =>
+    ids.has(p.id)
+      ? { ...p, estado: "enviado", enviado_en: p.enviado_en || ahora, ultimo_contacto: ahora }
+      : p
+  );
+  await guardarProspectos(act);
+  await guardarLote([]);
+  return c.json({ ok: true, enviados: ids.size });
 });
 
 app.post("/api/generar", async (c) => {
@@ -309,7 +325,7 @@ app.post("/api/respuesta", async (c) => {
   return c.json({ ok: true, texto });
 });
 
-// Generador de textos: email de presentación, seguimiento o RETOMA para un prospecto.
+// Generador de textos: email, seguimiento, RETOMA o MUESTRA (mensaje 2) para un prospecto.
 app.post("/api/texto", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const id = String(body.id || "");
@@ -321,6 +337,9 @@ app.post("/api/texto", async (c) => {
   if (tipo === "retoma") {
     const dias = diasDesde(p.ultimo_contacto || p.enviado_en || p.creado_en) ?? 0;
     texto = await generarRetomaConDeepSeek(p, dias);
+  } else if (tipo === "muestra") {
+    // Mensaje 2: acompaña las imágenes del prototipo (sin enlaces en David).
+    texto = await generarMuestraConDeepSeek(p);
   } else if (tipo === "seguimiento") {
     texto = await generarSeguimiento(p);
   } else {
@@ -335,6 +354,7 @@ app.post("/api/texto", async (c) => {
 // refresco (podría congelarse). Se precarga desde output/seguimientos.json y solo
 // se genera con IA lo que no está cacheado.
 const cacheRetoma = new Map<string, string>();
+const cacheMuestra = new Map<string, string>();
 async function precargarCacheRetoma() {
   try {
     const d = JSON.parse(await readFile(join(ROOT, "output", "seguimientos.json"), "utf-8"));
@@ -345,7 +365,7 @@ await precargarCacheRetoma();
 
 app.get("/api/seguimientos", async (c) => {
   const lista = await cargarProspectos();
-  const EN_SEGUIMIENTO = new Set(["enviado", "seguimiento", "reagendar"]);
+  const EN_SEGUIMIENTO = new Set(["enviado", "seguimiento", "reagendar", "interesado"]);
   const items = [];
   for (const p of lista) {
     if (!EN_SEGUIMIENTO.has(p.estado || "")) continue;
@@ -356,6 +376,11 @@ app.get("/api/seguimientos", async (c) => {
       retoma = await generarRetomaConDeepSeek(p, dias);
       cacheRetoma.set(p.id, retoma);
     }
+    let muestra = cacheMuestra.get(p.id);
+    if (!muestra) {
+      muestra = await generarMuestraConDeepSeek(p);
+      cacheMuestra.set(p.id, muestra);
+    }
     items.push({
       id: p.id,
       nombre_negocio: p.nombre_negocio,
@@ -364,8 +389,10 @@ app.get("/api/seguimientos", async (c) => {
       dias_desde_contacto: dias,
       ultimo_contacto: p.ultimo_contacto || p.enviado_en,
       retoma,
-      wa_link: waLink(p.whatsapp, retoma),
-      sin_enlaces: !contieneEnlaces(retoma),
+      retoma_wa_link: waLink(p.whatsapp, retoma),
+      muestra,
+      muestra_wa_link: waLink(p.whatsapp, muestra),
+      sin_enlaces: !contieneEnlaces(retoma) && !contieneEnlaces(muestra),
       whatsapp: p.whatsapp,
     });
   }

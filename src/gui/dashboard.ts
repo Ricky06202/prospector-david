@@ -169,8 +169,10 @@ tbody tr:hover{background:#f8fafc}
         <input type="number" id="lote-n" value="10" min="1" max="50" style="width:92px">
         <button class="prim" data-accion="preparar">Preparar lote</button>
         <button data-accion="generar">Generar capturas y reporte</button>
+        <button data-accion="enviar-todos">✓ Marcar todos como Enviado</button>
         <button class="danger" data-accion="vaciar">Vaciar lote</button>
       </div>
+      <p class="muted" style="margin:8px 0 0">Ya mandaste el mensaje 1 a todos del lote? Pulsa "Marcar todos como Enviado" y pasan a la pestaña Seguimientos (allí reenvías la muestra a quien te responda o la retoma a quien no).</p>
     </div>
 
     <div class="card" id="scrapers">
@@ -255,9 +257,11 @@ tbody tr:hover{background:#f8fafc}
         </div>
         <button data-accion="txt-email">📧 Email de presentación</button>
         <button data-accion="txt-seg">🔁 Seguimiento / recordatorio</button>
+        <button data-accion="txt-muestra">📷 Mensaje 2 (muestra)</button>
       </div>
       <div id="txt-info" class="muted" style="margin-top:6px;font-weight:700">Selecciona un prospecto…</div>
       <textarea id="txt-out" rows="8" placeholder="Aquí aparecerá tu texto…" style="width:100%;margin-top:12px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+      <div class="fotos" id="txt-fotos" style="margin-top:10px"></div>
       <div class="row" style="margin-top:10px">
         <button data-accion="txt-copiar">📋 Copiar</button>
         <a id="txt-wa" class="btn hidden" target="_blank" rel="noopener">Abrir en WhatsApp ↗</a>
@@ -466,17 +470,37 @@ async function loadSeguimientos(){
             '<div style="flex:1"><div class="p-name">'+i.nombre_negocio+'</div><div class="p-meta">'+i.tipo+' · '+i.whatsapp+'</div></div>'+
             diasBadge(i.dias_desde_contacto)+
           '</div>'+
-          (i.sin_enlaces?'<div class="muted" style="margin:8px 0 0">✅ Sin enlaces — adjunta las imágenes al enviar.</div>':'<div class="muted" style="margin:8px 0 0;color:#b45309">⚠ Contiene enlace — revisar.</div>')+
-          '<div class="copy" style="margin-top:8px">'+i.retoma+'</div>'+
+          '<div class="row" style="margin:10px 0 6px">'+
+            '<select class="seg-msg" data-id="'+i.id+'" style="min-width:220px;font-size:12px;padding:7px 10px">'+
+              '<option value="retoma">Retoma (no respondió)</option>'+
+              '<option value="muestra">Mensaje 2 · Muestra (respondió)</option>'+
+            '</select>'+
+            '<span class="muted" style="font-size:11px">'+i.dias_desde_contacto+'d desde el último contacto</span>'+
+          '</div>'+
+          (i.sin_enlaces?'<div class="muted" style="margin:0 0 8px">✅ Sin enlaces — adjunta las imágenes al enviar.</div>':'<div class="muted" style="margin:0 0 8px;color:#b45309">⚠ Contiene enlace — revisar.</div>')+
+          '<div class="copy seg-copy" data-id="'+i.id+'" style="margin-top:0">'+i.retoma+'</div>'+
           '<div class="fotos" id="seg-f-'+i.id+'"><span class="muted">cargando imágenes…</span></div>'+
           '<div class="p-actions" style="margin-top:8px">'+
-            '<a class="btn" style="background:#25D366;color:#fff;padding:8px 14px" target="_blank" rel="noopener" href="'+i.wa_link+'">Abrir WhatsApp · retoma ↗</a>'+
+            '<a class="btn seg-wa" data-id="'+i.id+'" style="background:#25D366;color:#fff;padding:8px 14px" target="_blank" rel="noopener" href="'+i.retoma_wa_link+'">Abrir WhatsApp ↗</a>'+
             '<button data-accion="estado" data-id="'+i.id+'" data-estado="interesado">★ Interesado</button>'+
             '<button data-accion="estado" data-id="'+i.id+'" data-estado="reagendar">Reagendar</button>'+
             '<button data-accion="estado" data-id="'+i.id+'" data-estado="no_interesado">No</button>'+
           '</div></div>';
       }).join('')
-    : '<div class="empty">Nadie en seguimiento. Cuando marques "Enviado" un prospecto, aparecerá aquí para su retoma.</div>';
+    : '<div class="empty">Nadie en seguimiento. Cuando marques "Enviado" un prospecto, aparecerá aquí para su retoma/muestra.</div>';
+  // Toggle retoma <-> muestra (cambia texto y enlace wa.me).
+  document.querySelectorAll('.seg-msg').forEach(sel=>{
+    sel.addEventListener('change',()=>{
+      const id=sel.dataset.id;
+      const item=r.items.find(x=>x.id===id);
+      if(!item) return;
+      const esMuestra=sel.value==='muestra';
+      const copy=document.querySelector('.seg-copy[data-id="'+id+'"]');
+      const wa=document.querySelector('.seg-wa[data-id="'+id+'"]');
+      if(copy) copy.textContent=esMuestra?item.muestra:item.retoma;
+      if(wa) wa.href=esMuestra?item.muestra_wa_link:item.retoma_wa_link;
+    });
+  });
   r.items.forEach(i=>{
     const el=$('#seg-f-'+i.id); if(!el) return;
     fetch('/api/prospectos/'+i.id+'/fotos').then(x=>x.json()).then(f=>{
@@ -620,6 +644,12 @@ document.addEventListener('click', async (ev)=>{
     aviso('Lote vaciado (los prospectos vuelven a "nuevo").');
     refrescar();
   }
+  else if(accion==='enviar-todos'){
+    aviso('⏳ Marcando todos del lote como Enviado…');
+    const r=await api('/api/lote/enviar-todos',{method:'POST'});
+    aviso('✓ '+r.enviados+' marcados como Enviado. Ahora revisa Seguimientos para la muestra/retoma.');
+    refrescar();
+  }
   else if(accion==='scrape'){
     aviso('⏳ Scrapeando CAMCHI… (2-3 min)');
     await api('/api/scrape',{method:'POST'});
@@ -655,15 +685,22 @@ document.addEventListener('click', async (ev)=>{
       abrir();
     }
   }
-  else if(accion==='txt-email'||accion==='txt-seg'){
+  else if(accion==='txt-email'||accion==='txt-seg'||accion==='txt-muestra'){
     const pid=$('#txt-prospecto').value;
     if(!pid){ aviso('Selecciona un prospecto primero','err'); return; }
+    const tipo=accion==='txt-email'?'email':accion==='txt-seg'?'seguimiento':'muestra';
     aviso('⏳ Generando texto…');
-    const r=await api('/api/texto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo:accion==='txt-email'?'email':'seguimiento'})});
+    const r=await api('/api/texto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo})});
     if(r.ok){
       $('#txt-out').value=r.texto;
-      aviso(accion==='txt-email'?'✓ Email listo — cópialo y envíalo.':'✓ Seguimiento listo.');
+      aviso(tipo==='muestra'?'✓ Mensaje 2 listo — adjunta las imágenes de abajo al enviarlo.':tipo==='email'?'✓ Email listo — cópialo y envíalo.':'✓ Seguimiento listo.');
       const link=$('#txt-wa'); link.href=waLink(prosTel(pid),r.texto); link.classList.remove('hidden');
+      // En "muestra" muestra las imágenes del prototipo para adjuntarlas.
+      const box=$('#txt-fotos');
+      if(tipo==='muestra'){
+        const f=await api('/api/prospectos/'+pid+'/fotos');
+        box.innerHTML=f.fotos.length?f.fotos.map(f=>'<img src="'+f+'" style="height:72px;border-radius:9px;border:1px solid var(--line)">').join(''):'<span class="muted">Sin capturas — genera primero el prototipo.</span>';
+      } else { box.innerHTML=''; }
     } else aviso('Error al generar','err');
   }
   else if(accion==='txt-copiar'){
