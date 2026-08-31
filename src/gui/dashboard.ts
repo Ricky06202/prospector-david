@@ -268,9 +268,9 @@ tbody tr:hover{background:#f8fafc}
 
       <div class="row">
         <div class="cb" style="position:relative;min-width:280px">
-          <input id="txt-buscar" placeholder="🔍 Buscar empresa…" autocomplete="off" style="width:100%">
+          <input id="txt-buscar" list="empresas-list" placeholder="🔍 Busca y escribe la empresa…" autocomplete="off" style="width:100%">
           <input type="hidden" id="txt-prospecto">
-          <div id="txt-lista" class="cb-list hidden"></div>
+          <datalist id="empresas-list"></datalist>
         </div>
         <button data-accion="txt-email">📧 Email de presentación</button>
         <button data-accion="txt-seg">🔁 Seguimiento / recordatorio</button>
@@ -597,53 +597,34 @@ async function cargarMant(){
     : '<div class="empty">Aún no hay clientes en mantenimiento.</div>';
 }
 
-let PROS={};
+let PROS={}; let NOMBRE_A_ID={};
 function prosTel(id){ return PROS[id]?PROS[id].whatsapp:''; }
 async function poblarSelect(){
   const r=await api('/api/prospectos');
-  PROS={};
-  r.prospectos.forEach(p=>PROS[p.id]={whatsapp:p.whatsapp,nombre:p.nombre_negocio,estado:p.estado||'nuevo'});
+  PROS={}; NOMBRE_A_ID={};
+  r.prospectos.forEach(p=>{
+    PROS[p.id]={whatsapp:p.whatsapp,nombre:p.nombre_negocio,estado:p.estado||'nuevo'};
+    NOMBRE_A_ID[p.nombre_negocio]=p.id;
+  });
+  const dl=$('#empresas-list');
+  dl.innerHTML=r.prospectos
+    .slice().sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio))
+    .map(p=>'<option value="'+p.nombre_negocio+'"></option>').join('');
   const sel=$('#txt-prospecto').value;
   if(sel && PROS[sel]){ $('#txt-buscar').value=PROS[sel].nombre; }
   else { $('#txt-prospecto').value=''; $('#txt-buscar').value=''; }
   mostrarInfoSel();
 }
-function filtrarLista(){
-  const q=$('#txt-buscar').value.toLowerCase();
-  const lista=$('#txt-lista');
-  const items=Object.entries(PROS)
-    .filter(([,pr])=>pr.nombre.toLowerCase().includes(q))
-    .sort((a,b)=>a[1].nombre.localeCompare(b[1].nombre))
-    .slice(0,30)
-    .map(([id,pr])=>'<div class="cb-item" data-id="'+id+'"><span>'+pr.nombre+'</span><span class="st">'+pr.estado+'</span></div>');
-  lista.innerHTML=items.join('')||'<div class="cb-item" style="color:var(--muted)">Sin resultados</div>';
-  lista.classList.remove('hidden');
-}
-function cerrarBusqueda(){
-  $('#txt-lista').classList.add('hidden');
-}
-function seleccionarItem(e){
-  const it=e.target.closest('.cb-item');
-  if(!it) return;
-  const id=it.dataset.id;
-  const pr=PROS[id];
-  if(!id||!pr) return;
-  $('#txt-prospecto').value=id;
-  $('#txt-buscar').value=pr.nombre;
-  cerrarBusqueda();
-  $('#txt-buscar').blur(); // suelta el foco: el dropdown queda cerrado de verdad
+// Datalist nativo: el navegador cierra la lista solo al seleccionar (nada se queda flotando).
+function sincronizarSeleccion(){
+  const val=$('#txt-buscar').value.trim();
+  const id=NOMBRE_A_ID[val];
+  $('#txt-prospecto').value= id||'';
   mostrarInfoSel();
 }
-$('#txt-buscar').addEventListener('focus',filtrarLista);
-$('#txt-buscar').addEventListener('input',filtrarLista);
-$('#txt-buscar').addEventListener('blur',()=>setTimeout(cerrarBusqueda,150));
-$('#txt-buscar').addEventListener('keydown',(e)=>{ if(e.key==='Escape') cerrarBusqueda(); });
-// pointerdown (funciona con mouse y táctil) + click como fallback para navegadores viejos.
-$('#txt-lista').addEventListener('pointerdown',(e)=>{ e.preventDefault(); seleccionarItem(e); });
-$('#txt-lista').addEventListener('click',(e)=>{ seleccionarItem(e); });
-document.addEventListener('click',(e)=>{
-  if(!e.target.closest('.cb')) cerrarBusqueda();
-});
+$('#txt-buscar').addEventListener('input', sincronizarSeleccion);
+$('#txt-buscar').addEventListener('change', sincronizarSeleccion);
+$('#txt-buscar').addEventListener('keydown',(e)=>{ if(e.key==='Enter') sincronizarSeleccion(); });
 function mostrarInfoSel(){
   const id=$('#txt-prospecto').value, info=$('#txt-info');
   const pr=PROS[id];
