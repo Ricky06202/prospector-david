@@ -273,7 +273,7 @@ export function textoCotizacionEscalonada(nombreNegocio: string, plan = "sin"): 
   for (const e of c.nivel2.extras) lineas.push(`  • ${e}`);
   lineas.push(
     ``,
-    `💡 Si decides avanzar al Nivel 2 dentro de los siguientes 30 días de completado el Nivel 1, el monto pagado en el Nivel 1 (B/. ${PRECIOS.landing.toFixed(2)}) se descuenta del total del Nivel 2.`,
+    `Si decides avanzar al Nivel 2 dentro de los siguientes 30 días de completado el Nivel 1, el monto pagado en el Nivel 1 (B/. ${PRECIOS.landing.toFixed(2)}) se descuenta del total del Nivel 2.`,
     ``,
     `MANTENIMIENTO OPCIONAL (aplica a cualquiera de los dos niveles)`,
     `Contenido actualizado, soporte directo, respaldo y optimización:`,
@@ -375,7 +375,7 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
         <ul class="extras">${extrasN2}</ul>
       </div>
 
-      <div class="credito">💡 Si decides avanzar al Nivel 2 dentro de los siguientes <b>30 días</b> de completado el Nivel 1, el monto pagado en el Nivel 1 (<b>B/. ${PRECIOS.landing.toFixed(2)}</b>) se descuenta del total del Nivel 2.</div>
+      <div class="credito">Si decides avanzar al Nivel 2 dentro de los siguientes <b>30 días</b> de completado el Nivel 1, el monto pagado en el Nivel 1 (<b>B/. ${PRECIOS.landing.toFixed(2)}</b>) se descuenta del total del Nivel 2.</div>
 
       ${mantBloque}
 
