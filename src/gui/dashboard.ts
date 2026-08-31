@@ -129,8 +129,17 @@ tbody tr:hover{background:#f8fafc}
 .cb-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:12px;margin-top:5px;max-height:300px;overflow-y:auto;z-index:60;box-shadow:var(--shadow-lg)}
 .cb-item{padding:9px 13px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #f1f5f9}
 .cb-item:last-child{border-bottom:none}
-.cb-item:hover{background:#f0fdfa}
+.cb-item:hover,.cb-item.sel{background:#f0fdfa}
 .cb-item .st{font-size:11px;color:var(--muted);flex-shrink:0}
+.cb-box{position:relative;display:flex;align-items:center}
+.cb-box input{width:100%;padding-right:56px}
+.cb-caret{position:absolute;right:14px;color:var(--muted);pointer-events:none;font-size:12px}
+.cb-clear{position:absolute;right:30px;cursor:pointer;color:var(--muted);font-weight:800;font-size:14px;padding:2px;border-radius:6px}
+.cb-clear:hover{color:var(--err)}
+/* Toasts */
+#toast{position:fixed;top:18px;right:18px;z-index:120;max-width:340px;padding:13px 18px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:var(--shadow-lg);transition:.25s}
+.toast-ok{background:#0d9488;color:#fff;border:1px solid #0f766e}
+.toast-err{background:#dc2626;color:#fff;border:1px solid #b91c1c}
 </style>
 </head>
 <body>
@@ -164,8 +173,10 @@ tbody tr:hover{background:#f8fafc}
       <button data-accion="recargar">↻ Recargar</button>
     </div>
   </header>
+  <p class="muted" id="upd" style="margin:-6px 0 14px"></p>
 
   <p id="aviso" class="aviso hidden"></p>
+  <div id="toast" class="hidden"></div>
 
   <!-- ============ DASHBOARD ============ -->
   <section class="screen activa" id="scr-dashboard">
@@ -268,9 +279,13 @@ tbody tr:hover{background:#f8fafc}
 
       <div class="row">
         <div class="cb" style="position:relative;min-width:280px">
-          <input id="txt-buscar" list="empresas-list" placeholder="🔍 Busca y escribe la empresa…" autocomplete="off" style="width:100%">
+          <div class="cb-box">
+            <input id="txt-buscar" placeholder="🔍 Busca y escribe la empresa…" autocomplete="off">
+            <span class="cb-caret">▾</span>
+            <span id="cb-clear" class="cb-clear hidden">✕</span>
+          </div>
+          <div id="txt-lista" class="cb-list hidden"></div>
           <input type="hidden" id="txt-prospecto">
-          <datalist id="empresas-list"></datalist>
         </div>
         <button data-accion="txt-email">📧 Email de presentación</button>
         <button data-accion="txt-seg">🔁 Seguimiento / recordatorio</button>
@@ -376,7 +391,7 @@ function copSecuencia(id){
   }
   return '<div class="copy">'+copDe(id)+'</div>';
 }
-function aviso(msg,tipo){const el=$('#aviso');el.textContent=msg;el.className='aviso'+(tipo==='err'?' av-err':'');}
+function aviso(msg,tipo){ const el=$('#aviso'); el.textContent=msg; el.className='aviso'+(tipo==='err'?' av-err':''); toast(msg,tipo); }
 function acciones(p){
   const est=p.estado||'nuevo';
   const b=(label,accion,extra)=>'<button data-accion="'+accion+'" data-id="'+p.id+'"'+(extra?' data-estado="'+extra+'"':'')+'>'+label+'</button> ';
@@ -494,6 +509,7 @@ async function refrescar(){
   const s=await api('/api/estado');
   const st=$('#status'); st.className='pill st-'+s.estado; st.textContent=s.estado+(s.estado==='corriendo'?'…':'');
   loadLote(); cargarTabla(); loadSeguimientos(); poblarSelect(); poblarMantSelect(); cargarMant();
+  const u=$('#upd'); if(u) u.textContent='Actualizado: '+new Date().toLocaleTimeString('es-PA');
 }
 
 // ============ SEGUIMIENTOS ============
@@ -597,34 +613,81 @@ async function cargarMant(){
     : '<div class="empty">Aún no hay clientes en mantenimiento.</div>';
 }
 
-let PROS={}; let NOMBRE_A_ID={};
+let PROS={};
 function prosTel(id){ return PROS[id]?PROS[id].whatsapp:''; }
 async function poblarSelect(){
   const r=await api('/api/prospectos');
-  PROS={}; NOMBRE_A_ID={};
-  r.prospectos.forEach(p=>{
-    PROS[p.id]={whatsapp:p.whatsapp,nombre:p.nombre_negocio,estado:p.estado||'nuevo'};
-    NOMBRE_A_ID[p.nombre_negocio]=p.id;
-  });
-  const dl=$('#empresas-list');
-  dl.innerHTML=r.prospectos
-    .slice().sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio))
-    .map(p=>'<option value="'+p.nombre_negocio+'"></option>').join('');
+  PROS={};
+  r.prospectos.forEach(p=>PROS[p.id]={whatsapp:p.whatsapp,nombre:p.nombre_negocio,estado:p.estado||'nuevo'});
   const sel=$('#txt-prospecto').value;
   if(sel && PROS[sel]){ $('#txt-buscar').value=PROS[sel].nombre; }
   else { $('#txt-prospecto').value=''; $('#txt-buscar').value=''; }
   mostrarInfoSel();
 }
-// Datalist nativo: el navegador cierra la lista solo al seleccionar (nada se queda flotando).
-function sincronizarSeleccion(){
-  const val=$('#txt-buscar').value.trim();
-  const id=NOMBRE_A_ID[val];
-  $('#txt-prospecto').value= id||'';
+
+/* Combobox estilizado y confiable: cierra al seleccionar, clic fuera, Esc y teclado. */
+const cbInput=$('#txt-buscar'), cbList=$('#txt-lista');
+function renderLista(items){
+  cbList.innerHTML=(items.length
+    ? items.map(([id,pr])=>'<div class="cb-item" data-id="'+id+'"><span>'+pr.nombre+'</span><span class="st">'+pr.estado+'</span></div>')
+    : ['<div class="cb-item" style="color:var(--muted)">Sin resultados</div>']
+  ).join('');
+}
+function filtrarLista(){
+  const q=cbInput.value.toLowerCase();
+  const items=Object.entries(PROS).filter(([,pr])=>pr.nombre.toLowerCase().includes(q))
+    .sort((a,b)=>a[1].nombre.localeCompare(b[1].nombre)).slice(0,30);
+  renderLista(items);
+  cbList.classList.remove('hidden');
+  $('#cb-clear').classList.toggle('hidden', !cbInput.value);
+}
+function seleccionarCombobox(id){
+  const pr=PROS[id]; if(!id||!pr) return;
+  cbInput.value=pr.nombre;
+  $('#txt-prospecto').value=id;
+  cbList.classList.add('hidden');
+  cbInput.blur();
+  $('#cb-clear').classList.remove('hidden');
   mostrarInfoSel();
 }
-$('#txt-buscar').addEventListener('input', sincronizarSeleccion);
-$('#txt-buscar').addEventListener('change', sincronizarSeleccion);
-$('#txt-buscar').addEventListener('keydown',(e)=>{ if(e.key==='Enter') sincronizarSeleccion(); });
+cbInput.addEventListener('mousedown',filtrarLista);
+cbInput.addEventListener('focus',filtrarLista);
+cbInput.addEventListener('input',filtrarLista);
+cbInput.addEventListener('blur',()=>setTimeout(()=>cbList.classList.add('hidden'),150));
+cbList.addEventListener('mousedown',(e)=>{ e.preventDefault(); const it=e.target.closest('.cb-item'); if(it) seleccionarCombobox(it.dataset.id); });
+cbInput.addEventListener('keydown',(e)=>{
+  const items=[...cbList.querySelectorAll('.cb-item[data-id]')];
+  if(e.key==='Escape'){ cbList.classList.add('hidden'); return; }
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    const d=e.key==='ArrowDown'?1:-1;
+    const cur=items.findIndex(x=>x.classList.contains('sel'));
+    let n=(cur<0?(d>0?-1:0):cur)+d;
+    n=Math.min(Math.max(n,0),items.length-1);
+    items.forEach(x=>x.classList.remove('sel'));
+    if(items[n]){ items[n].classList.add('sel'); items[n].scrollIntoView({block:'nearest'}); }
+    return;
+  }
+  if(e.key==='Enter'){ const sel=cbList.querySelector('.cb-item.sel'); if(sel) seleccionarCombobox(sel.dataset.id); }
+});
+document.addEventListener('mousedown',(e)=>{ if(!e.target.closest('.cb')) cbList.classList.add('hidden'); });
+$('#cb-clear').addEventListener('mousedown',(e)=>{ e.preventDefault(); e.stopPropagation(); cbInput.value=''; $('#txt-prospecto').value=''; $('#cb-clear').classList.add('hidden'); mostrarInfoSel(); });
+
+/* Toasts: feedback visible en cualquier pantalla. */
+let toastT;
+function toast(msg,tipo){
+  const t=$('#toast');
+  t.textContent=msg;
+  t.className='toast '+(tipo==='err'?'toast-err':'toast-ok');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>t.classList.add('hidden'),3000);
+}
+/* Botones ocupados: evita dobles clics durante procesos largos. */
+function setBusy(b){
+  document.querySelectorAll('button').forEach(btn=>{ btn.disabled=b; });
+  const st=$('#status'); if(st && b) st.textContent='trabajando…';
+}
+function confirmar(msg){ return window.confirm(msg); }
 function mostrarInfoSel(){
   const id=$('#txt-prospecto').value, info=$('#txt-info');
   const pr=PROS[id];
@@ -665,38 +728,40 @@ document.addEventListener('click', async (ev)=>{
     refrescar();
   }
   else if(accion==='generar'){
-    aviso('⏳ Generando landings, capturas y copys… (tarda unos minutos)');
-    await api('/api/generar',{method:'POST'});
-    aviso('✓ Listo. Revisa cada tarjeta, envía y marca "Enviado".');
+    setBusy(true); aviso('⏳ Generando landings, capturas y copys… (tarda unos minutos)');
+    try{ await api('/api/generar',{method:'POST'}); aviso('✓ Listo. Revisa cada tarjeta, envía y marca "Enviado".'); }
+    finally{ setBusy(false); }
     refrescar();
   }
   else if(accion==='vaciar'){
+    if(!confirmar('¿Vaciar el lote? Los prospectos vuelven a "nuevo".')) return;
     await api('/api/lote/vaciar',{method:'POST'});
     aviso('Lote vaciado (los prospectos vuelven a "nuevo").');
     refrescar();
   }
   else if(accion==='enviar-todos'){
+    if(!confirmar('¿Marcar TODOS los del lote como Enviado?')) return;
     aviso('⏳ Marcando todos del lote como Enviado…');
     const r=await api('/api/lote/enviar-todos',{method:'POST'});
     aviso('✓ '+r.enviados+' marcados como Enviado. Ahora revisa Seguimientos para la muestra/retoma.');
     refrescar();
   }
   else if(accion==='scrape'){
-    aviso('⏳ Scrapeando CAMCHI… (2-3 min)');
-    const r=await api('/api/scrape',{method:'POST'});
-    aviso(r.ok?'✓ Scrapeo CAMCHI terminado. Ve a Prospectos y filtra por "Nuevos".':('✗ Error: '+(r.error||'desconocido')), r.ok?'':'err');
+    setBusy(true); aviso('⏳ Scrapeando CAMCHI… (2-3 min)');
+    try{ const r=await api('/api/scrape',{method:'POST'}); aviso(r.ok?'✓ Scrapeo CAMCHI terminado. Ve a Prospectos y filtra por "Nuevos".':('✗ Error: '+(r.error||'desconocido')), r.ok?'':'err'); }
+    finally{ setBusy(false); }
     refrescar();
   }
   else if(accion==='gmaps'){
-    aviso('⏳ Scrapeando Google Maps… (lento, con pausas anti-captcha)');
-    const r=await api('/api/gmaps',{method:'POST'});
-    aviso(r.ok?'✓ Scrapeo Google Maps terminado.':('✗ Error: '+(r.error||'desconocido')), r.ok?'':'err');
+    setBusy(true); aviso('⏳ Scrapeando Google Maps… (lento, con pausas anti-captcha)');
+    try{ const r=await api('/api/gmaps',{method:'POST'}); aviso(r.ok?'✓ Scrapeo Google Maps terminado.':('✗ Error: '+(r.error||'desconocido')), r.ok?'':'err'); }
+    finally{ setBusy(false); }
     refrescar();
   }
   else if(accion==='places'){
-    aviso('⏳ Scrapeando Google Places… (API oficial, rápido)');
-    const r=await api('/api/places',{method:'POST'});
-    aviso(r.ok?'✓ Scrapeo Google Places terminado.':('✗ Error: '+(r.error||'desconocido')), r.ok?'':'err');
+    setBusy(true); aviso('⏳ Scrapeando Google Places… (API oficial, rápido)');
+    try{ const r=await api('/api/places',{method:'POST'}); aviso(r.ok?'✓ Scrapeo Google Places terminado.':('✗ Error: '+(r.error||'desconocido')), r.ok?'':'err'); }
+    finally{ setBusy(false); }
     refrescar();
   }
   else if(accion==='recargar'){ aviso('↻ Recargado'); refrescar(); }
@@ -817,6 +882,7 @@ document.addEventListener('click', async (ev)=>{
     refrescar();
   }
   else if(accion==='mant-quitar'){
+    if(!confirmar('¿Quitar este cliente del mantenimiento?')) return;
     await api('/api/mantenimiento/'+id+'/quitar',{method:'POST'});
     aviso('Cliente quitado del mantenimiento');
     refrescar();
@@ -834,7 +900,8 @@ document.addEventListener('click', async (ev)=>{
     const tipo=$('#cot-tipo').value, productos=+$('#cot-productos').value||0;
     let plan=$('#cot-mant').value;
     if(tipo==='mantenimiento'&&plan==='sin') plan='mensual';
-    aviso('⏳ Generando PDF…');
+    setBusy(true); aviso('⏳ Generando PDF…');
+    try{
     const r=await fetch('/api/cotizador/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,plan})});
     if(r.ok){
       const blob=await r.blob();
@@ -845,6 +912,7 @@ document.addEventListener('click', async (ev)=>{
       URL.revokeObjectURL(a.href);
       aviso('✓ PDF descargado');
     } else aviso('Error al generar el PDF','err');
+    } finally { setBusy(false); }
   }
   else if(accion==='ab-calcular'){
     const n=Math.max(1,Math.min(50,+$('#ab-n').value||10));
