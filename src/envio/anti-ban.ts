@@ -1,19 +1,21 @@
 /**
- * SISTEMA ANTI-BAN DE WHATSAPP + SECUENCIA "NUBE PRIVADA CIFRADA"
- * ---------------------------------------------------------------
- * Producto: configuración de nube privada cifrada por $50 (pago único,
- * incluye setup + primer mes de hosting; después $10/mes o export gratis).
- * Nichos: abogados, contadores, clínicas/consultorios, consultores y
- * negocios con información confidencial. NO se venden landings.
+ * SISTEMA ANTI-BAN DE WHATSAPP + SECUENCIA "NUBE PRIVADA SOBERANA" (IaaS)
+ * -----------------------------------------------------------------------
+ * Modelo de negocio: proveedor de infraestructura con plataforma lista y
+ * automatizada (Coolify/Dokploy + Storj). NO es desarrollo a medida: se vende
+ * ACCESO INMEDIATO con suscripción mensual. 3 planes fijos, sin negociación:
+ *   BÁSICO $10/mes (50GB) · PRO $25/mes (200GB + sync móvil + backup diario)
+ *   NEGOCIO $50/mes (500GB + multiusuario hasta 3 + soporte prioritario).
  *
- *  1) SECUENCIA EN 2 MENSAJES: la "apertura" es corta, SIN enlaces, SIN
- *     imágenes y SIN mencionar crypto/blockchain/USDC (regla del objetivo:
- *     la palabra crypto solo sale cuando el cliente ya respondió). El
- *     mensaje 2 ("detalles") es donde van precio completo y formas de pago.
- *  2) DELAYS DINÁMICOS con jitter + pausas + factor nocturno.
- *  3) TOPE DIARIO: 20-30 contactos por sesión/día (WA_MAX_SESION default 25).
- *  4) SEGUIMIENTO ÚNICO: a las 48h sin respuesta, UN solo mensaje amable;
- *     después se DESCARTA (no hay segundos reintentos).
+ * Reglas implementadas:
+ *  1) Mensaje 1 (apertura): tono "solución inmediata", sin precio detallado,
+ *     sin enlaces, sin emojis y SIN palabras crypto (regla de fricción).
+ *  2) Mensaje 2 (tras respuesta): el LINK de activación/registro — no se
+ *     explica tecnología. Si hay PLATAFORMA_URL en .env, se inserta directo.
+ *  3) Dudas: "todo se gestiona desde tu panel; si algo falla, lo resuelvo en minutos".
+ *  4) Regla de ORO anti-fricción: pedir algo fuera de los 3 planes → NO educado.
+ *  5) Volumen: 30-50 contactos/día (WA_MAX_SESION default 40) con delays humanos.
+ *  6) Seguimiento ÚNICO a las 48h; después se descarta.
  */
 import "dotenv/config";
 import type { Prospecto } from "../types.ts";
@@ -21,32 +23,26 @@ import type { Prospecto } from "../types.ts";
 const rng = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 export interface ConfigAntiBan {
-  /** Base del delay entre envíos (ms). */
   delayBase: number;
-  /** Jitter aleatorio sobre el base (ms). */
   delayJitter: number;
-  /** Factor multiplicador nocturno (22h-7h): 0 desactiva. */
   factorNocturno: number;
-  /** Cada cuántos envíos se mete una pausa larga (0 = nunca). */
   pausaCada: number;
-  /** Pausa larga mínima (ms). */
   pausaMin: number;
-  /** Pausa larga máxima (ms). */
   pausaMax: number;
-  /** Máx envíos por sesión antes de sugerir parar (0 = sin tope). */
+  /** Máx envíos por sesión/día (0 = sin tope). */
   maxPorSesion: number;
 }
 
 export function configAntiBan(): ConfigAntiBan {
   return {
-    delayBase: Number(process.env.WA_DELAY_BASE || 45000),          // 45 s
-    delayJitter: Number(process.env.WA_DELAY_JITTER || 90000),      // +0-90 s
+    delayBase: Number(process.env.WA_DELAY_BASE || 30000),          // 30 s (más volumen: 30-50/día)
+    delayJitter: Number(process.env.WA_DELAY_JITTER || 60000),      // +0-60 s
     factorNocturno: Number(process.env.WA_FACTOR_NOCTURNO || 2.5),  // x2.5 de noche
-    pausaCada: Number(process.env.WA_PAUSA_CADA || 6),              // pausa cada 6
-    pausaMin: Number(process.env.WA_PAUSA_MIN || 30) * 60000,       // 30 min
-    pausaMax: Number(process.env.WA_PAUSA_MAX || 60) * 60000,       // 60 min
-    // Regla del objetivo: máximo 20-30 contactos/día para no quemar la cuenta.
-    maxPorSesion: Number(process.env.WA_MAX_SESION || 25),
+    pausaCada: Number(process.env.WA_PAUSA_CADA || 10),             // pausa cada 10
+    pausaMin: Number(process.env.WA_PAUSA_MIN || 20) * 60000,       // 20 min
+    pausaMax: Number(process.env.WA_PAUSA_MAX || 45) * 60000,       // 45 min
+    // Meta de volumen del nuevo modelo: 30-50 leads/día (proceso automático, esfuerzo bajo).
+    maxPorSesion: Number(process.env.WA_MAX_SESION || 40),
   };
 }
 
@@ -55,22 +51,15 @@ function esNocturno(d = new Date()): boolean {
   return h >= 22 || h < 7;
 }
 
-/**
- * Delay dinámico (ms) entre el envío `orden` y el `orden+1`.
- * Crece levemente con cada envío (patrón humano de cansancio) y
- * se multiplica de noche.
- */
+/** Delay dinámico (ms) entre envío y envío (patrón humano, crece con el cansancio). */
 export function delayDinamico(orden: number, cfg: ConfigAntiBan = configAntiBan()): number {
   let ms = cfg.delayBase + rng(0, cfg.delayJitter);
-  if (orden > 0) ms += Math.min(orden, 15) * 9000;   // +9 s por envío (techo 135 s)
+  if (orden > 0) ms += Math.min(orden, 15) * 6000;   // +6 s por envío (techo 90 s)
   if (esNocturno() && cfg.factorNocturno > 0) ms *= cfg.factorNocturno;
   return Math.round(ms);
 }
 
-/**
- * Si ya se enviaron `cantidadEnviados`, devuelve ms de PAUSA LARGA
- * (momento para dejar de enviar), o null si se sigue normalmente.
- */
+/** Pausa larga cada N envíos, o null si se sigue normalmente. */
 export function pausaLarga(cantidadEnviados: number, cfg: ConfigAntiBan = configAntiBan()): number | null {
   if (cfg.pausaCada <= 0) return null;
   if (cantidadEnviados > 0 && cantidadEnviados % cfg.pausaCada === 0) {
@@ -81,14 +70,11 @@ export function pausaLarga(cantidadEnviados: number, cfg: ConfigAntiBan = config
 
 /** Formatos legibles para el reporte humano. */
 export function formatoMs(ms: number): string {
-  if (ms >= 60000) {
-    const m = Math.round(ms / 60000);
-    return `${m} min`;
-  }
+  if (ms >= 60000) return `${Math.round(ms / 60000)} min`;
   return `${Math.round(ms / 1000)} s`;
 }
 
-/** Secuencia de delays para una sesión de N envíos (para previsualizar el ritmo). */
+/** Secuencia de delays para una sesión de N envíos. */
 export function planDeRitmo(n: number, cfg: ConfigAntiBan = configAntiBan()): { orden: number; delay: number; pausa: number | null }[] {
   return Array.from({ length: Math.max(1, n) }, (_, i) => ({
     orden: i + 1,
@@ -101,83 +87,104 @@ export function planDeRitmo(n: number, cfg: ConfigAntiBan = configAntiBan()): { 
 // PERSONALIZACIÓN POR GIRO
 // ---------------------------------------------------------------
 
-/** Qué datos sensibles maneja este tipo de negocio (para el gancho del mensaje 1). */
+/** Qué dato sensible resaltar en la apertura según el giro del prospecto. */
 export function temaPorTipo(tipo: string): string {
   const t = (tipo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/abogad|legal|juridic|notar|herencia/.test(t)) return "herencias, contratos y expedientes de casos";
-  if (/contad|contabl|auditor|fiscal|impuesto/.test(t)) return "balances, declaraciones y datos fiscales de tus clientes";
-  if (/psicolog|psiquiatr/.test(t)) return "notas de sesión y expedientes de pacientes";
-  if (/clinic|medic|salud|dental|paciente|hospital/.test(t)) return "historiales clínicos y datos de pacientes";
-  if (/laboratori/.test(t)) return "resultados de laboratorio y datos de pacientes";
-  if (/seguro/.test(t)) return "pólizas y datos personales de asegurados";
-  if (/inmobiliar/.test(t)) return "contratos de compra-venta y datos de clientes";
-  if (/colegio|escuel/.test(t)) return "expedientes y datos de estudiantes y apoderados";
-  if (/consultor|arquitect|ingenier|topograf|actuar/.test(t)) return "proyectos e información confidencial de tus clientes";
-  return "información confidencial de tus clientes";
+  if (/abogad|legal|juridic|notar|herencia/.test(t)) return "expedientes y contratos de clientes";
+  if (/contad|contabl|auditor|fiscal|impuesto/.test(t)) return "balances y declaraciones de tus clientes";
+  if (/psicolog|psiquiatr/.test(t)) return "notas de sesión de tus pacientes";
+  if (/clinic|medic|salud|dental|paciente|hospital|laboratori/.test(t)) return "historiales y datos de pacientes";
+  if (/fotograf|video|disena|creador|community|redactor/.test(t)) return "tus archivos de clientes y proyectos";
+  if (/nutricion|entrenad|coach/.test(t)) return "planes e historiales de tus clientes";
+  if (/seguro/.test(t)) return "pólizas y datos de asegurados";
+  if (/inmobiliar/.test(t)) return "contratos y datos de tus clientes";
+  if (/colegio|escuel/.test(t)) return "expedientes de estudiantes";
+  if (/consultor|arquitect|ingenier|topograf|actuar/.test(t)) return "proyectos e información de tus clientes";
+  return "archivos importantes de tu trabajo";
 }
 
 // ---------------------------------------------------------------
-// SECUENCIA DE MENSAJES
+// SECUENCIA DE MENSAJES (tono: solución inmediata, no presupuesto)
 // ---------------------------------------------------------------
 
 /**
- * MENSAJE 1 — APERTURA. Corto, sin enlaces/imágenes y SIN la palabra crypto,
- * blockchain, USDC o similar (regla operativa 5). Solo "nube privada cifrada".
+ * MENSAJE 1 — APERTURA. Sin enlaces, sin emojis, sin crypto. Presenta la
+ * nube ya lista ("ni yo puedo ver tus archivos") y pide permiso para pasar
+ * el link de activación. El precio va como rango mensual, nunca como setup.
  */
 export function mensajeApertura(p: Prospecto): string {
   const tema = temaPorTipo(p.tipo);
   const aperturas = [
-    `Hola ${p.nombre_negocio}: vi que manejás ${tema}. Muchos colegas del área están migrando a nubes privadas cifradas para proteger esos datos sin suscripciones abusivas. Configuro tu espacio privado por $50 — pago único que incluye el setup y el primer mes de hosting. Después elegís: mantenerlo por $10/mes o llevarte tus datos gratis. ¿Te paso detalles?`,
-    `Buenas ${p.nombre_negocio}: si hoy tu información sensible vive en un Drive compartido o en un pendrive, eso puede cambiar. Te monto una nube privada cifrada, solo para ti, por $50 de pago único (setup y primer mes incluidos). ¿Te explico en 2 minutos?`,
-    `Hola ${p.nombre_negocio}: atendés ${tema}, justamente el tipo de información que no debería estar en un servicio que la escanea. Configuro tu espacio privado cifrado por $50, pago único con primer mes incluido. ¿Te comparto cómo funciona?`,
+    `Hola ${p.nombre_negocio}: vi que trabajás con ${tema}. ¿Sabías que podés tener tu propia nube privada cifrada donde ni yo puedo ver tus archivos? Ya está lista: sin instalaciones ni esperas. Por $10 a $25 al mes tenés espacio seguro, backups automáticos y control total. Es más barato que Dropbox y 100% privado. ¿Te paso el link para activarlo en 2 minutos?`,
+    `Hola ${p.nombre_negocio}: si tus ${tema} viven en Google Drive o iCloud, eso se resuelve hoy. Ofrezco nubes privadas cifradas donde ni el proveedor puede meter las manos — suscripción mensual desde $10, backups automáticos y acceso desde el celular. Se activa en 2 minutos, sin instalaciones. ¿Te comparto el link?`,
+    `Buenas ${p.nombre_negocio}: tengo una plataforma de nubes privadas cifradas ya funcionando — entrás, pagás tu plan mensual (desde $10) y en 2 minutos tenés tu espacio donde ni yo puedo ver tus archivos. Ideal para respaldar ${tema} sin depender de servicios que los escanean. ¿Te paso el link para activarlo?`,
   ];
   return aperturas[Math.floor(Math.random() * aperturas.length)];
 }
 
 /**
- * MENSAJE 2 — DETALLES. Se envía SOLO si el contacto respondió. Aquí sí van
- * las formas de pago (USDC o transferencia) y la comparación con Drive.
- * Sin enlaces: todo el valor cabe en el texto (funciona en David sin links).
+ * MENSAJE 2 — ACTIVACIÓN. SOLO tras la respuesta. No se explica tecnología:
+ * va el link de registro/pago directo. Con PLATAFORMA_URL vacía, se pide el
+ * correo para enviarlo manualmente.
  */
-export function mensajeMuestra(p: Prospecto, _urlPrototipo?: string): string {
-  const tema = temaPorTipo(p.tipo);
-  return [
-    `¡Gracias por responder, ${p.nombre_negocio}! Te lo resumo en 4 puntos:`,
+export function mensajeMuestra(_p: Prospecto, _urlPrototipo?: string): string {
+  const url = (process.env.PLATAFORMA_URL || "").trim();
+  const lineas = [
+    `¡Perfecto! No necesitas saber nada técnico:`,
     ``,
-    `1) Tu espacio privado cifrado para ${tema}: accedés desde el celular y la computadora, con tu propia cuenta. Nadie más entra; no lo escanea ningún tercero.`,
-    `2) Setup, capacitación y el primer mes de hosting van incluidos por $50 de pago único. Sin contratos ni permanencia.`,
-    `3) El mes siguiente elegís: mantenerlo por $10/mes, o te exportás TODOS los datos gratis y te quedás con ellos.`,
-    `4) Forma de pago: USDC sin comisiones, o transferencia bancaria (+10%). Lo hago todo yo, vos solo me pasás qué carpetas necesitás.`,
+    `1) Elegís tu plan: Básico $10/mes (50GB), Pro $25/mes (200GB + sincronización automática con tu celular + backup diario) o Negocio $50/mes (500GB, hasta 3 usuarios y soporte prioritario por WhatsApp).`,
+    `2) Activás con tarjeta o USDC (transferencia bancaria +10%) y en 2 minutos ya estás subiendo tus archivos.`,
     ``,
-    `¿Te lo configuro esta semana?`,
-  ].join("\n");
+  ];
+  if (url) {
+    lineas.push(`Link para activarlo: ${url}`);
+  } else {
+    lineas.push(`Paseame tu correo y te mando el link de activación ahora mismo (o pedímelo por aquí y te lo paso suelto).`);
+  }
+  lineas.push(
+    ``,
+    `Todo se gestiona desde tu panel. Si algo falla, me escribís y lo resuelvo en minutos.`
+  );
+  return lineas.join("\n");
 }
 
 /**
- * MENSAJE 3 — CIERRE / MANEJO DE OBJECIONES. Para quien respondió pero duda
- * del precio o compara con Google Drive. Sin enlaces.
+ * MENSAJE DE DUDAS — respuesta breve estándar cuando preguntan cómo funciona.
+ * Prohibido explicar arquitectura; vender tranquilidad.
  */
 export function mensajeCierre(_p: Prospecto): string {
   return [
-    `Entiendo la duda, es la pregunta más común.`,
+    `Es simple: tu nube ya está corriendo, solo activás tu cuenta.`,
     ``,
-    `Google Drive cuesta $3/mes pero es compartido: la plataforma escanea tus archivos y el alquiler nunca termina. Los $50 de la nube privada son pago único por un espacio cifrado que es solo tuyo, con configuración completa, capacitación y el primer mes de hosting dentro. Después decidís: $10/mes si querés seguir con nosotros, o te llevás tus datos gratis. Tu tiempo vale más que 40 horas de prueba y error.`,
+    `Todo se gestiona desde tu panel: subís archivos, ves tus respaldos y administrás usuarios sin tocar nada técnico. Si algo falla, me escribís por aquí y lo resuelvo en minutos — ese es justamente el trato.`,
     ``,
-    `¿Lo probamos esta semana?`,
+    `¿Con cuál plan empezamos: Básico $10, Pro $25 o Negocio $50?`,
   ].join("\n");
 }
 
 /**
- * MENSAJE DE RETOMA — UN solo seguimiento a las 48h (regla operativa 4).
- * Pasados esos días sin respuesta, se DESCARTA: no genera segundo intento.
+ * REGLA DE ORO ANTI-FRICCIÓN — el NO educado a lo que no está en los 3 planes
+ * (2TB, instalar tal software, desarrollo a medida…). Filtra curiosos.
+ */
+export function mensajeFueraDePlanes(_p: Prospecto): string {
+  return [
+    `Te respondo honesto para no hacerte perder tiempo:`,
+    ``,
+    `Mi plataforma está optimizada para estos 3 niveles de seguridad/velocidad (Básico $10, Pro $25, Negocio $50). Lo que me pedís está fuera de lo que ofrezco, así que te digo que no. Si necesitás algo distinto, quizás no sea tu mejor opción ahora mismo.`,
+    ``,
+    `Si en algún punto un plan te sirve, la activación toma 2 minutos. ¡Saludos!`,
+  ].join("\n");
+}
+
+/**
+ * MENSAJE DE RETOMA — UN solo seguimiento a las 48h; después descartar.
  */
 export function mensajeRetoma(p: Prospecto, dias: number): string {
   if (dias > 7) return ""; // ventana cerrada: descartar, no insistir
-  const tema = temaPorTipo(p.tipo);
   return [
     `Hola ${p.nombre_negocio}:`,
     ``,
-    `Te escribí hace un par de días sobre la nube privada cifrada para ${tema}. Sé que la semana tiene — si el tema te interesa, te paso los detalles en 2 minutos. Si no aplica, sin problema y gracias por tu tiempo.`,
+    `Te escribí hace un par de días por la nube privada cifrada (activación en 2 minutos, desde $10/mes). Si te interesa, te paso el link sin compromiso. Si no aplica, sin problema y gracias por tu tiempo.`,
   ].join("\n");
 }
 
@@ -195,16 +202,17 @@ export function secuenciaMensajes(
 }
 
 /**
- * Guardia de seguridad del mensaje de APERTURA: jamás enlaces, adjuntos,
- * emojis ni la palabra crypto/USDC/blockchain (regla 5 del objetivo).
+ * Guardia del mensaje de APERTURA: jamás enlaces, adjuntos, emojis, ni
+ * palabras crypto (USDC/bitcoin/blockchain) — el pago se menciona recién
+ * en el mensaje 2. También rechaza precios de "setup único" (modelo viejo).
  */
 const PATRON_BLOQUEADO =
-  /(https?:\/\/|www\.|wa\.me|\.pdf\b|\.docx?\b|\.xlsx?\b|\.zip\b|\.png\b|\.jpe?g\b|\.webp\b|\.gif\b|📎|⬇|adjunto|[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]|crypto|criptomoned|blockchain|descentraliz|bitcoin|\bbtc\b|usdt|usdc|stablecoin|token|nft)/iu;
+  /(https?:\/\/|www\.|wa\.me|\.pdf\b|\.docx?\b|\.xlsx?\b|\.zip\b|\.png\b|\.jpe?g\b|\.webp\b|\.gif\b|📎|⬇|adjunto|[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]|crypto|criptomoned|blockchain|descentraliz|bitcoin|\bbtc\b|usdt|usdc|stablecoin|token|nft|pago \u00fanico|setup)/iu;
 export function esMensajeAperturaSeguro(texto: string): boolean {
   return texto.length > 0 && texto.length <= 600 && !PATRON_BLOQUEADO.test(texto);
 }
 
-/** ¿El texto contiene algún enlace? (David: nunca enviar enlaces). */
+/** ¿El texto contiene algún enlace? (usable para validar solo el mensaje 1). */
 export function contieneEnlaces(texto: string): boolean {
   return /(https?:\/\/|www\.|wa\.me|\b\w+\.(com|pa|net|org|io|dev)\b)/i.test(texto);
 }

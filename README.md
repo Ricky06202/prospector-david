@@ -2,35 +2,41 @@
 
 Pipeline end-to-end de prospección local: **scraper Places → copys de WhatsApp** (envío 100% manual para proteger tu cuenta).
 
-> **Objetivo (reestructurado):** vender **configuración de nube privada cifrada por $50**
-> (pago único = setup + capacitación + primer mes de hosting; después $10/mes o export de
-> datos gratis). El público es quien maneja **información confidencial**: abogados y
-> estudios jurídicos, contadores, clínicas y consultorios (médicos/psicológicos),
-> consultores y pequeños negocios con datos sensibles. **NO se venden landing pages ni
-> servicios de marketing** (el pipeline de landings/capturas queda legacy, intacto pero fuera del flujo).
+> **Objetivo (modelo IaaS de suscripciones):** generar **$200+/mes recurrentes** vendiendo
+> **ACCESO INMEDIATO** a la *Nube Privada Soberana* — plataforma ya lista, corriendo y
+> automatizada (Coolify/Dokploy + Storj). Nada de desarrollo a medida ni setups uno por uno.
+> **3 planes, sin negociación:** Básico $10/mes (50GB) · Pro $25/mes (200GB + sync móvil +
+> backup diario) · Negocio $50/mes (500GB + 3 usuarios + soporte prioritario WhatsApp).
+> **Público (filtrado por velocidad):** freelancers, creadores de contenido, consultores
+> independientes y pequeños negocios con datos sensibles SIN equipo IT (estudios contables,
+> abogados junior, clínicas pequeñas), gente cansada de Drive/iCloud. **EXCLUIR:** grandes
+> empresas/corporativos lentos (proxy: `SCORE_RESENAS_MAX`) y buscadores de desarrollo custom.
 
-### Reglas del nuevo objetivo (implementadas en el código)
-1. **Filtros de búsqueda** (`src/scraper/places.ts`): solo giros sensibles — abogados,
-   notarías, contadores, auditoría, clínicas, consultorios médicos/psicológicos,
-   laboratorios, seguros, inmobiliarias, consultoras, colegios. **Excluidos**: retail,
-   restaurantes, tiendas online y agencias de marketing (`GIROS_EXCLUIDOS`).
-2. **Lead Scoring** (`src/lib/lead-scoring.ts`): puntúa por giro sensible (+50),
-   reputación y tamaño de cartera. **La web propia es irrelevante** — un abogado con
-   web perfecta también paga $50 por soberanía de datos. Default `SCORE_MODO=filter`.
-3. **Mensaje 1 — apertura**: describe sus datos sensibles por giro (`temaPorTipo`),
-   ofrece la nube privada cifrada y **JAMÁS menciona crypto/USDC/blockchain**
-   (regla 5; `esMensajeAperturaSeguro` lo bloquea automáticamente). Sin enlaces, sin
-   emojis, sin imágenes. **Tope diario: 20-30 contactos** (`WA_MAX_SESION=25`).
-4. **Mensaje 2 — detalles** (solo tras respuesta): los 4 puntos del servicio, la
-   comparación con Google Drive y las formas de pago — USDC sin comisiones o
-   transferencia (+10%). Aquí sí se puede decir USDC.
-5. **Manejo de objeciones** en `mensajeCierre` / `generarRespuesta`: "Drive es compartido
-   y escanea tus datos", "los $50 son pago único por soberanía real", "tu tiempo vale más
-   que 40 horas de prueba y error".
-6. **Seguimiento ÚNICO a las 48h** (regla 4): un solo mensaje amable entre el día 2 y el
-   7; pasado ese margen se descarta — nada de re-envíos eternos.
-7. **Cotizador** (`src/lib/precios.ts`): oferta única $50 + continuidad $10/mes o export
-   gratis, en texto y PDF bajo el respaldo de la empresa matriz.
+### Reglas implementadas en el código
+1. **Filtros de búsqueda** (`src/scraper/places.ts`): giros sensibles (abogados,
+   contadores, clínicas, consultorios, seguros…) **+ independientes/creadores**
+   (fotógrafos, diseñadores, nutricionistas, entrenadores, traductores… —
+   `GIROS_INDEPENDIENTES`, deciden y pagan sin comité). **Excluidos**: retail/gastro/
+   marketing/corporativos (`GIROS_EXCLUIDOS`) y negocios con más de
+   `SCORE_RESENAS_MAX` reseñas (compra lenta con comité).
+2. **Lead Scoring** (`src/lib/lead-scoring.ts`): independiente +45 / giro sensible +50,
+   rating y cartera activa. **La web propia es irrelevante.** Default `SCORE_MODO=filter`.
+3. **Mensaje 1 — apertura** (tono *solución inmediata*, no presupuesto): "¿Sabías que
+   podés tener tu propia nube privada cifrada donde ni yo puedo ver tus archivos? Ya
+   está lista, sin instalaciones; desde $10-$25 al mes, más barato que Dropbox. ¿Te paso
+   el link para activarlo en 2 minutos?" Personalizado con `temaPorTipo()`. **Sin enlaces,
+   sin emojis y sin palabras crypto** (el guardia `esMensajeAperturaSeguro` también
+   bloquea "pago único"/"setup" del modelo viejo). **Volumen: 30-50/día** (`WA_MAX_SESION=40`).
+4. **Mensaje 2 — activación** (SOLO tras respuesta): **no se explica tecnología**; va el
+   `PLATAFORMA_URL` (link de registro/pago de .env) + los 3 planes + "todo se gestiona
+   desde tu panel; si algo falla, lo resuelvo en minutos". Pago: USDC sin comisiones o
+   transferencia (+10%).
+5. **Regla de ORO anti-fricción** (`mensajeFueraDePlanes` + botón 🚫 en la GUI): si pide
+   algo fuera de los 3 planes (2TB, instalar X software, a medida) → NO educado:
+   "la plataforma está optimizada para estos 3 niveles; quizá no sea tu mejor opción".
+6. **Seguimiento ÚNICO a las 48h**: un solo mensaje entre día 2 y 7; después, descartado.
+7. **Cotizador** (`src/lib/precios.ts`): `planesNube()` — menú fijo de $10/$25/$50 en
+   texto y PDF. El objetivo del pipeline es el **MRR**, no el cobro único.
 
 ---
 
@@ -81,7 +87,7 @@ bun run places        # MÓDULO 1c: Google Places API con LEAD SCORING — nicho
                       #   (config: PLACES_QUERIES · PLACES_LIMITE · SCORE_MODO=filter · SCORE_MINIMO)
 bun run build:landings # (LEGACY) landings de muestra del embudo viejo — ya no se usan
 bun run capturar      # (LEGACY) capturas de landings — ya no se usan
-bun run envio         # MÓDULO 4: secuencia anti-ban (apertura sin enlaces + detalles) + lista + reporte HTML
+bun run envio         # MÓDULO 4: secuencia anti-ban (apertura sin enlaces + link de activación) + lista + reporte HTML
 bun run pipeline      # = build + capturar + envio (respeta el lote activo; módulos legacy no afectan el flujo)
 ```
 
@@ -96,12 +102,12 @@ bun run pipeline      # = build + capturar + envio (respeta el lote activo; mód
 xdg-open output/reporte_envio.html
 ```
 Cada tarjeta muestra la **secuencia anti-ban** (mensaje 1 = apertura sin enlaces ni crypto;
-mensaje 2 = detalles con precio y formas de pago) con los delays recomendados entre envíos. **Abre, revisa y envía tú mismo. Nada se
+mensaje 2 = link de activación + los 3 planes) con los delays recomendados entre envíos. **Abre, revisa y envía tú mismo. Nada se
 envía solo.**
 
-- **En David no se mandan enlaces** (`ENVIAR_ENLACES=false`): la gente teme las estafas. El
-  mensaje 1 es una apertura corta sin nada; si el dueño responde, envías el **mensaje 2**
-  con los detalles — todo el valor cabe en texto (no hace adjuntar imágenes).
+- **En David el mensaje 1 no lleva enlaces**: la gente teme las estafas. La apertura es
+  corta y sin nada adjunto; si el dueño responde, el **mensaje 2** lleva el link de
+  activación de la plataforma (`PLATAFORMA_URL`) — directo, sin explicaciones técnicas.
 - Respeta el ritmo: `WA_DELAY_BASE` + `WA_DELAY_JITTER` (ms) entre envíos, pausa larga cada
   `WA_PAUSA_CADA` envíos, factor nocturno x2.5 de 22h a 7h.
 - `output/lista_envio.json` = versión estructurada para herramientas (incluye `mensajes[]`,
@@ -127,11 +133,11 @@ Cada tarjeta de seguimiento muestra los días, el mensaje listo (`wa.me`) y las 
 2. Envía el **mensaje 1** (apertura, sin enlaces) a todos, abriendo cada `wa.me`.
    Luego pulsa **"✓ Marcar todos como Enviado"** (o marca uno por uno).
 3. Cada tarjeta de la pestaña **Seguimientos** tiene un selector:
-   - **Retoma (no respondió)** → el ÚNICO seguimiento a las 48h.
-   - **Mensaje 2 · Detalles (respondió)** → cuando el cliente te responde, envía los 4
-     puntos con precio, continuidad y formas de pago.
-4. El que responde → lo pasas a **Interesado** → cierras con la cotización ($50 pago único;
-   si duda, usa el mensaje de objeciones). Meta: 100 contactos/sem → 5-10 respuestas → 2-3 ventas.
+   - **Retoma 48h (única)** → el UNICO seguimiento; pasados 7 días queda descartado.
+   - **Mensaje 2 · Link de activación** → cuando responde, le mandás el link. Listo: se
+     suscribe solo desde la plataforma (proceso automático, esfuerzo cero).
+4. Si duda → botón **🚫 Fuera de planes** cuando pida algo que no está en los 3 planes.
+   Meta: 150-250 contactos/sem → 8-15 respuestas → **5-10 suscriptores nuevos/semana**.
 
 ## 5. Reglas del scraper (camchi y Places)
 
@@ -159,14 +165,15 @@ Cada tarjeta de seguimiento muestra los días, el mensaje listo (`wa.me`) y las 
 
 ## 7. Consejo de negocio
 
-El flujo que convierte: scrapea (Places con scoring de giros sensibles) → revisa el reporte
-→ envía manualmente respetando el tope de 20-30 contactos/día (mensaje 1 = apertura sin
-enlaces ni crypto; mensaje 2 = detalles tras la respuesta; UN retoma a las 48h) → cierras
-la **nube privada cifrada por $50** (pago único con primer mes incluido) → cobras en USDC
-sin comisiones o por transferencia (+10%).
+El flujo que convierte: scrapea (Places con scoring de giros sensibles/independientes) →
+revisa el reporte → envía manualmente 30-50 contactos/día (mensaje 1 = apertura sin enlaces
+ni crypto; mensaje 2 = **link de activación** tras la respuesta; UN retoma a las 48h) → el
+cliente se suscribe solo en la plataforma (automatizada, no tocas nada) → cobras en USDC
+sin comisiones, tarjeta o transferencia (+10%).
 
-Meta semanal: 100 negocios contactados → 5-10 respuestas → 2-3 ventas = **$100-150 USDC
-netos**, más el recurring de $10/mes de quienes decidan quedarse.
+**Metas del modelo:** Mes 1 = ~$100-150 (validación) · Mes 2+ = **>$200/mes MRR** ·
+5-10 suscriptores nuevos/semana. Regla de oro: si no cabe en los 3 planes, se dice que NO —
+filtramos curiosos para enfocarnos en quien paga rápido.
 
 ## 8. Despliegue en GitHub
 

@@ -192,7 +192,7 @@ tbody tr:hover{background:#f8fafc}
         <button data-accion="enviar-todos">✓ Marcar todos como Enviado</button>
         <button class="danger" data-accion="vaciar">Vaciar lote</button>
       </div>
-      <p class="muted" style="margin:8px 0 0">Ya mandaste el mensaje 1 a todos del lote? Pulsa "Marcar todos como Enviado" y pasan a la pestaña Seguimientos (allí reenvías la muestra a quien te responda o la retoma a quien no).</p>
+      <p class="muted" style="margin:8px 0 0">Ya mandaste el mensaje 1 a todos del lote? Pulsa "Marcar todos como Enviado" y pasan a la pestaña Seguimientos (allí envías el link de activación a quien te responda, o la única retoma a las 48h).</p>
     </div>
 
     <div class="card" id="scrapers">
@@ -240,7 +240,7 @@ tbody tr:hover{background:#f8fafc}
   <section class="screen" id="scr-seguimientos">
     <div class="card">
       <h2>📡 Seguimientos</h2>
-      <p class="sub">Quienes fueron contactados pero no respondieron (ni leyeron). Re-envía su mensaje de retoma cuando quieras — aun después de un mes. En David: solo imágenes, cero enlaces.</p>
+      <p class="sub">Contactados sin respuesta: UN único seguimiento entre el día 2 y el 7 (después se descarta). Mensaje 1: cero enlaces ni crypto. El link de activación va solo en el mensaje 2, cuando ya respondieron.</p>
       <div class="row" style="margin-bottom:12px">
         <button data-accion="seg-generar-todos">🔄 Generar capturas de los que falten</button>
       </div>
@@ -289,7 +289,8 @@ tbody tr:hover{background:#f8fafc}
         </div>
         <button data-accion="txt-email">📧 Email de presentación</button>
         <button data-accion="txt-seg">🔁 Seguimiento / recordatorio</button>
-        <button data-accion="txt-muestra">📷 Mensaje 2 (muestra)</button>
+        <button data-accion="txt-muestra">🔗 Mensaje 2 (link de activación)</button>
+        <button data-accion="txt-fuera">🚫 Fuera de planes (decir NO)</button>
       </div>
       <div id="txt-info" class="muted" style="margin-top:6px;font-weight:700">Selecciona un prospecto…</div>
       <textarea id="txt-out" rows="8" placeholder="Aquí aparecerá tu texto…" style="width:100%;margin-top:12px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
@@ -313,7 +314,7 @@ tbody tr:hover{background:#f8fafc}
 
       <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
         <h3 style="margin:0 0 4px">🧾 Cotizador escalonado</h3>
-        <p class="sub">Oferta única: nube privada cifrada — $50 de pago único (configuración + capacitación + primer mes de hosting); después $10/mes o export de datos gratis.</p>
+        <p class="sub">Nube Privada Soberana — suscripción mensual: Básico $10 (50GB) · Pro $25 (200GB + sync + backup diario) · Negocio $50 (500GB + 3 usuarios + soporte prioritario). Activación inmediata con link.</p>
         <div class="row">
           <select id="cot-tipo" style="min-width:220px">
             <option value="escalonada" selected>Escalonada (2 niveles)</option>
@@ -333,7 +334,7 @@ tbody tr:hover{background:#f8fafc}
           </select>
           <button data-accion="cot-generar">🧾 Generar cotización</button>
         </div>
-        <p class="muted" style="margin:8px 0 0">Dos bloques = configuración única de $50 (ya incluye el primer mes) + continuidad flexible ($10/mes o llevarte tus datos gratis). El total del PDF siempre es $50.</p>
+        <p class="muted" style="margin:8px 0 0">El PDF muestra los 3 planes con el elegido resaltado. Ingreso objetivo: MRR recurrente ($200+/mes). Si piden algo fuera de los planes → 🚫 "Fuera de planes".</p>
         <textarea id="cot-out" rows="11" placeholder="Cotización escalonada…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
         <div class="row" style="margin-top:10px">
           <button data-accion="cot-copiar">📋 Copiar</button>
@@ -514,9 +515,9 @@ async function refrescar(){
 
 // ============ SEGUIMIENTOS ============
 function diasBadge(dias){
-  if(dias<=7) return '<span class="badge b-en_cola">'+dias+'d · nudge</span>';
-  if(dias<=30) return '<span class="badge b-reagendar">'+dias+'d · retoma</span>';
-  return '<span class="badge b-no_interesado" style="background:#fee2e2;color:#b91c1c">'+dias+'d · retoma en frío</span>';
+  if(dias<2) return '<span class="badge b-en_cola">'+dias+'d · en espera</span>';
+  if(dias<=7) return '<span class="badge b-reagendar">'+dias+'d · retoma única</span>';
+  return '<span class="badge b-no_interesado" style="background:#fee2e2;color:#b91c1c">'+dias+'d · descartado</span>';
 }
 
 async function loadSeguimientos(){
@@ -531,8 +532,8 @@ async function loadSeguimientos(){
           '</div>'+
           '<div class="row" style="margin:10px 0 6px">'+
             '<select class="seg-msg" data-id="'+i.id+'" style="min-width:220px;font-size:12px;padding:7px 10px">'+
-              '<option value="retoma">Retoma (no respondió)</option>'+
-              '<option value="muestra">Mensaje 2 · Muestra (respondió)</option>'+
+              '<option value="retoma">Retoma 48h (única, no respondió)</option>'+
+              '<option value="muestra">Mensaje 2 · Link de activación (respondió)</option>'+
             '</select>'+
             '<span class="muted" style="font-size:11px">'+i.dias_desde_contacto+'d desde el último contacto</span>'+
           '</div>'+
@@ -807,10 +808,10 @@ document.addEventListener('click', async (ev)=>{
       abrir();
     }
   }
-  else if(accion==='txt-email'||accion==='txt-seg'||accion==='txt-muestra'){
+  else if(accion==='txt-email'||accion==='txt-seg'||accion==='txt-muestra'||accion==='txt-fuera'){
     const pid=$('#txt-prospecto').value;
     if(!pid){ aviso('Selecciona un prospecto primero','err'); return; }
-    const tipo=accion==='txt-email'?'email':accion==='txt-seg'?'seguimiento':'muestra';
+    const tipo=accion==='txt-email'?'email':accion==='txt-seg'?'seguimiento':accion==='txt-fuera'?'fuera':'muestra';
     aviso('⏳ Generando texto…');
     const r=await api('/api/texto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo})});
     if(r.ok){
