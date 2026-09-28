@@ -184,7 +184,7 @@ tbody tr:hover{background:#f8fafc}
 
     <div class="card" id="lote">
       <h2>Lote del día</h2>
-      <p class="sub">Prepara tu lote diario (nunca se repiten los enviados) y genera sus landings, capturas y copys.</p>
+      <p class="sub">Prepara tu lote diario (nunca se repiten los enviados) y genera los copys de apertura y detalles de la nube privada.</p>
       <div class="row">
         <input type="number" id="lote-n" value="10" min="1" max="50" style="width:92px">
         <button class="prim" data-accion="preparar">Preparar lote</button>
@@ -226,8 +226,8 @@ tbody tr:hover{background:#f8fafc}
           <option value="no_interesado">No interesados</option>
         </select>
         <select id="f-lead" title="Track">
-          <option value="landing">Landing (sin web)</option>
-          <option value="upsell">Upsell (tienen web)</option>
+          <option value="landing">Nube (embudo actual)</option>
+          <option value="upsell">Legacy (landings viejas)</option>
           <option value="todos">Todos</option>
         </select>
         <button data-accion="filtrar">Filtrar</button>
@@ -313,11 +313,11 @@ tbody tr:hover{background:#f8fafc}
 
       <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
         <h3 style="margin:0 0 4px">🧾 Cotizador escalonado</h3>
-        <p class="sub">Estrategia del Caballo de Troya: Nivel 1 = Landing en 24 h ($300) · Nivel 2 = Plataforma Operativa ($1,200+, respaldada por la empresa matriz).</p>
+        <p class="sub">Oferta única: nube privada cifrada — $50 de pago único (configuración + capacitación + primer mes de hosting); después $10/mes o export de datos gratis.</p>
         <div class="row">
           <select id="cot-tipo" style="min-width:220px">
             <option value="escalonada" selected>Escalonada (2 niveles)</option>
-            <option value="landing">Solo Nivel 1 — Landing</option>
+            <option value="landing">Cotización simple — setup $50</option>
             <option value="catalogo">Catálogo en línea + WhatsApp</option>
             <option value="ecommerce">Tienda en línea con pagos</option>
             <option value="mantenimiento">Solo mantenimiento (renovación)</option>
@@ -333,7 +333,7 @@ tbody tr:hover{background:#f8fafc}
           </select>
           <button data-accion="cot-generar">🧾 Generar cotización</button>
         </div>
-        <p class="muted" style="margin:8px 0 0">Escalonada = página YA (24 h) + semilla del upsell institucional (dashboard desde $1,200) bajo la garantía de la empresa matriz. El TOTAL inicial suma el Nivel 1 + el plan elegido.</p>
+        <p class="muted" style="margin:8px 0 0">Dos bloques = configuración única de $50 (ya incluye el primer mes) + continuidad flexible ($10/mes o llevarte tus datos gratis). El total del PDF siempre es $50.</p>
         <textarea id="cot-out" rows="11" placeholder="Cotización escalonada…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
         <div class="row" style="margin-top:10px">
           <button data-accion="cot-copiar">📋 Copiar</button>
@@ -493,7 +493,7 @@ async function cargarTabla(){
         '<td><span class="t-name"><span class="t-dot" style="background:'+c+'"></span>'+p.nombre_negocio+'</span>'+scoreBadge(p)+(esUpsell?'<span class="badge b-upsell">Upsell</span>':'')+'</td>'+
         '<td>'+p.tipo+'</td><td>'+badg(p.estado)+'</td><td>'+(p.whatsapp||'')+(p.email?'<div class="muted" style="font-size:11px">'+p.email+'</div>':'')+'</td>'+
         '<td>'+(esUpsell
-          ? '<button data-accion="upsell-msg" data-id="'+p.id+'">🚀 Upsell</button> '
+          ? '<button data-accion="upsell-msg" data-id="'+p.id+'">📋 Detalles</button> '
           : acciones(p))+
         '<button data-accion="prototipo" data-id="'+p.id+'">Prototipo</button> '+
         '<a class="btn" href="/api/prospectos/'+p.id+'/descargar-todo">Descargar todo ⬇</a>'+
@@ -728,7 +728,7 @@ document.addEventListener('click', async (ev)=>{
     refrescar();
   }
   else if(accion==='generar'){
-    setBusy(true); aviso('⏳ Generando landings, capturas y copys… (tarda unos minutos)');
+    setBusy(true); aviso('⏳ Generando copys de la nube privada… (tarda unos segundos)');
     try{ await api('/api/generar',{method:'POST'}); aviso('✓ Listo. Revisa cada tarjeta, envía y marca "Enviado".'); }
     finally{ setBusy(false); }
     refrescar();
@@ -772,8 +772,8 @@ document.addEventListener('click', async (ev)=>{
     const r=await api('/api/texto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,tipo:'upsell'})});
     if(r.ok){
       window.open(waLink(prosTel(id),r.texto),'_blank');
-      aviso('✓ Mensaje de upsell listo en WhatsApp');
-    } else aviso('Error generando el mensaje de upsell','err');
+      aviso('✓ Mensaje de detalles listo en WhatsApp');
+    } else aviso('Error generando el mensaje de detalles','err');
   }
   else if(accion==='foto'){ abrirLightbox(b.dataset.src); }
   else if(accion==='lb-cerrar'){ cerrarLightbox(); }

@@ -6,13 +6,15 @@
  *   - output/lista_envio.json  (estructurado, para herramientas)
  *   - output/reporte_envio.html (interactivo: copys, fotos y enlaces wa.me listos)
  *
+ * OBJETIVO: vender NUBE PRIVADA CIFRADA ($50 pago único, setup + primer mes;
+ * después $10/mes o export gratis). No se venden landings.
+ *
  * ANTI-BAN: cada prospecto lleva una SECUENCIA de mensajes:
- *   1) apertura (corto, sin enlaces/PDF/imágenes) → wa.me
- *   2) muestra  (con las IMÁGENES del prototipo, SOLO tras la respuesta del dueño)
- *   3) cierre   (seguimiento si no cierra)
- * Además genera la LISTA DE SEGUIMIENTO: quienes no respondieron ni leyeron
- * recuperan su mensaje de retoma (adaptado a los días transcurridos) para
- * re-enviarlo cuando sea — aun un mes después.
+ *   1) apertura (corto, sin enlaces/imágenes y SIN mencionar crypto/USDC) → wa.me
+ *   2) detalles (precio completo, continuidad y formas de pago, SOLO tras respuesta)
+ *   3) cierre   (objeción de precio/Drive, si duda)
+ * LISTA DE SEGUIMIENTO: regla operativa 4 — UN único seguimiento amable a las
+ * 48h; pasados 7 días sin respuesta se DESCARTA (sin segundos intentos).
  */
 import "dotenv/config";
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
@@ -67,14 +69,14 @@ for (const p of prospectos) {
     mensajes: [
       {
         tipo: "apertura",
-        etiqueta: "1 · Apertura (sin enlaces)",
+        etiqueta: "1 · Apertura (sin enlaces, sin mencionar crypto)",
         texto: apertura,
         wa_link: waLink(p.whatsapp, apertura),
         delay_estimado_ms: 0,
       },
       {
         tipo: "muestra",
-        etiqueta: "2 · Muestra (tras su respuesta)",
+        etiqueta: "2 · Detalles (tras su respuesta)",
         texto: muestra,
         wa_link: waLink(p.whatsapp, muestra),
         delay_estimado_ms: planDeRitmo(1)[0].delay,
@@ -88,15 +90,16 @@ for (const p of prospectos) {
   console.log(`[envio] ${p.id} · apertura + muestra (${archivos.length} fotos)`);
 }
 
-// ---- SEGUIMIENTOS: quienes no han cerrado, con su retoma por días ----
+// ---- SEGUIMIENTOS: UN único follow-up a las 48h; después descartar ----
 const TODOS = JSON.parse(await readFile(join(ROOT, "data", "prospectos.json"), "utf-8")) as Prospecto[];
-const EN_SEGUIMIENTO = new Set(["enviado", "seguimiento", "reagendar"]);
 const seguimientos = [];
 for (const p of TODOS) {
-  if (!EN_SEGUIMIENTO.has(p.estado || "")) continue;
+  if (p.estado !== "enviado") continue; // "seguimiento" = ya fue retomado → fuera
   const base = p.ultimo_contacto || p.enviado_en || p.creado_en;
   const dias = diasDesde(base) ?? 0;
+  if (dias < 2 || dias > 7) continue;   // ventana de la ÚNICA retoma (48h-7d)
   const retoma = await generarRetomaConDeepSeek(p, dias);
+  if (!retoma) continue;                // >7d: generarRetoma devuelve "" → descartado
   seguimientos.push({
     id: p.id,
     nombre_negocio: p.nombre_negocio,
@@ -112,6 +115,9 @@ for (const p of TODOS) {
 seguimientos.sort((a, b) => b.dias_desde_contacto - a.dias_desde_contacto);
 
 const cfg = configAntiBan();
+if (cfg.maxPorSesion > 0 && registros.length > cfg.maxPorSesion) {
+  console.warn(`[envio] ⚠ ${registros.length} prospectos superan el tope diario de ${cfg.maxPorSesion} — envía los primeros ${cfg.maxPorSesion} hoy y el resto mañana.`);
+}
 const ritmo = planDeRitmo(registros.length || 1, cfg);
 
 await writeFile(
@@ -136,7 +142,7 @@ const tarjetas = registros
         <div style="border-left:3px solid ${m.tipo === "apertura" ? "#f59e0b" : "#0d9488"};padding:4px 0 4px 12px">
           <p style="margin:0;font-size:12px;font-weight:700;color:#334155">${m.etiqueta}${m.delay_estimado_ms ? ` · envíalo ~${formatoMs(m.delay_estimado_ms)} después` : ""}</p>
           <pre style="white-space:pre-wrap;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;color:#334155;margin:6px 0">${m.texto.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>
-          ${m.tipo === "muestra" ? '<p style="margin:4px 0;font-size:12px;color:#b45309"><b>Adjunta las imágenes de abajo</b> al enviar este mensaje (en David no se mandan enlaces).</p>' : ""}
+          ${m.tipo === "muestra" ? '<p style="margin:4px 0;font-size:12px;color:#b45309"><b>Envíalo SOLO si ya respondió.</b> Lleva precio, continuidad ($10/mes o export gratis) y formas de pago.</p>' : ""}
           <a href="${m.wa_link}" target="_blank" rel="noopener" style="display:inline-block;background:${m.tipo === "apertura" ? "#f59e0b" : "#25D366"};color:#fff;text-decoration:none;text-align:center;padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px">Abrir WhatsApp · ${m.tipo}</a>
         </div>`
         )
@@ -161,8 +167,9 @@ const html = `<!doctype html>
     <h1 style="font-size:24px;color:#0f172a">Lista de envío manual</h1>
     <p style="color:#64748b">Revisa cada copia, abre el WhatsApp con el mensaje preescrito y envía tú mismo (nada se envía automáticamente).</p>
     <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:14px 16px;font-size:13px;color:#78350f;margin-bottom:16px">
-      <b>Ritmo anti-ban recomendado:</b> entre envío y envío espera ${formatoMs(cfg.delayBase)} a ${formatoMs(cfg.delayBase + cfg.delayJitter)} (crece con cada uno). Cada ${cfg.pausaCada} envíos haz una pausa de ${formatoMs(cfg.pausaMin)}–${formatoMs(cfg.pausaMax)}.
-      <br><b>En David no se mandan enlaces:</b> el mensaje 1 es la apertura sin nada; si el dueño responde, envía el mensaje 2 adjuntando las <b>imágenes</b> de abajo. Sin emojis (se ven mal en el enlace wa.me).
+      <b>Tope diario:</b> máximo ${cfg.maxPorSesion} contactos (${20}–${30} por día para no quemar la cuenta). Entre envío y envío espera ${formatoMs(cfg.delayBase)} a ${formatoMs(cfg.delayBase + cfg.delayJitter)} (crece con cada uno). Cada ${cfg.pausaCada} envíos haz una pausa de ${formatoMs(cfg.pausaMin)}–${formatoMs(cfg.pausaMax)}.
+      <br><b>Reglas del mensaje 1:</b> sin enlaces, sin imágenes y SIN mencionar crypto/USDC/blockchain — solo "nube privada cifrada". Si el dueño responde, manda el mensaje 2 con precio completo y formas de pago. Sin emojis.
+      <br><b>Seguimiento:</b> UN solo retoma a las 48h (lista abajo); después de 7 días sin respuesta, se descarta.
       ${avisosApertura ? `<br><b style="color:#b45309">${avisosApertura} apertura(s) con enlace detectado — corregidas con la plantilla segura.</b>` : ""}
     </div>
     <div style="display:grid;gap:16px;margin-top:16px">${tarjetas}</div>

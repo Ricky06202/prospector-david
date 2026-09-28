@@ -69,7 +69,7 @@ export async function prepararLote(n: number): Promise<{ elegidos: Prospecto[]; 
   const lista = await cargarProspectos();
   const enCola = lista.filter((p) => p.estado === "en_cola" && p.tipo_lead !== "upsell");
   // Disponibles: nuevos + reagendados (los pospuestos vuelven a salir en lotes futuros).
-  // El track UPSELL queda FUERA del lote de $300.
+  // El track "upsell" (legacy de landings) queda FUERA del lote de nube $50.
   const pendientes = lista.filter(
     (p) => (!p.estado || p.estado === "nuevo" || p.estado === "reagendar") && p.tipo_lead !== "upsell"
   );
@@ -93,15 +93,15 @@ export async function prepararLote(n: number): Promise<{ elegidos: Prospecto[]; 
 }
 
 /** Prospectos activos para procesar: el lote actual si existe, si no NICHO, si no todos.
- *  Por defecto (lead="landing") el track de UPSELL queda fuera del pipeline de $300. */
-export async function filtrarActivos(lista: Prospecto[], nicho?: string, lead: "landing" | "upsell" | "todos" = "landing"): Promise<Prospecto[]> {
+ *  Por defecto (lead="nube") el track legacy de UPSELL queda fuera del pipeline. */
+export async function filtrarActivos(lista: Prospecto[], nicho?: string, lead: "nube" | "landing" | "upsell" | "todos" = "nube"): Promise<Prospecto[]> {
   let base = lista;
   if (nicho) {
     const q = nicho.toLowerCase();
     base = base.filter((p) => p.tipo.toLowerCase().includes(q) || p.nombre_negocio.toLowerCase().includes(q));
   }
   if (lead === "upsell") base = base.filter((p) => p.tipo_lead === "upsell");
-  else if (lead === "landing") base = base.filter((p) => p.tipo_lead !== "upsell");
+  else base = base.filter((p) => p.tipo_lead !== "upsell"); // nube|landing → todo el embudo actual
   const lote = await leerLote();
   if (lote.length) {
     const enLote = base.filter((p) => lote.includes(p.id));
