@@ -1,9 +1,8 @@
 /**
  * Scraper de GOOGLE PLACES API (New) con LEAD SCORING — la vía oficial, sin captchas.
- * OBJETIVO: suscripciones de NUBE PRIVADA SOBERANA ($10/$25/$50 al mes, acceso
- * INMEDIATO). Público: independientes/creadores y pequeños negocios que manejan
- * DATOS SENSIBLES (abogados, contadores, clínicas, consultorios, consultores).
- * EXCLUIR retail, gastro, marketing y corporativos lentos (reseñas > MAX).
+ * OBJETIVO: vender CONFIGURACIÓN DE NUBE PRIVADA CIFRADA ($50 USDC pago único) a
+ * negocios que manejan DATOS SENSIBLES: abogados, contadores, clínicas, consultorios,
+ * consultores. EXCLUIR retail, restaurantes, tiendas online y marketing.
  * Busca por texto en TODA Chiriquí (provincia + pueblos) y puntúa cada lead
  * (src/lib/lead-scoring.ts):
  *   - Modo filter (default): solo entran giros sensibles sobre el umbral.
@@ -26,7 +25,7 @@ import type { Prospecto } from "../types.ts";
 import { normalizarTelefonoPA } from "../lib/telefono.ts";
 import { accentParaTipo } from "../lib/accent.ts";
 import { normalizarNombre, esWebPropia } from "../lib/dedupe.ts";
-import { calcularScore, esGiroSensible, esGiroIndependiente, ordenarPorScore, SCORE_UMBRALES } from "../lib/lead-scoring.ts";
+import { calcularScore, esGiroSensible, esGiroExcluido, ordenarPorScore, SCORE_UMBRALES } from "../lib/lead-scoring.ts";
 import { analizarWebsParalelo } from "../lib/web-quality.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -49,13 +48,10 @@ const CATEGORIAS = [
   "psiquiatras", "laboratorios clínicos", "optometrías", "fisioterapia",
   // Otros con información confidencial de clientes.
   "agencias de seguros", "inmobiliarias", "consultoras", "colegios privados",
-  // Independientes/creadores (conversión rápida, deciden solos).
-  "fotógrafos", "estudios de fotografía", "diseñadores gráficos", "productoras de video",
-  "nutricionistas", "entrenadores personales", "traductores", "tutorías privadas",
 ];
 // Categorías de mayor volumen que además se buscan pueblo por pueblo.
 const CATEGORIAS_POR_PUEBLO = [
-  "abogados", "contadores públicos", "clínicas privadas", "fotógrafos", "nutricionistas",
+  "abogados", "contadores públicos", "notarías", "clínicas privadas", "psicólogos",
 ];
 const PUEBLOS = ["Boquete", "Volcán", "Bugaba", "La Concepción", "Puerto Armuelles", "Alanje"];
 
@@ -96,9 +92,8 @@ function tipoLegible(types: string[]): string {
   const orden = [
     "lawyer", "accountant", "doctor", "medical_clinic", "clinic", "health", "hospital",
     "dentist", "psychologist", "physiotherapist", "optometrist", "pharmacy", "laboratory",
-    "insurance_agency", "real_estate_agency", "photographer", "marketing_manager",
-    "general_contractor", "school", "beauty_salon", "gym", "restaurant", "cafe", "store",
-    "supermarket", "car_repair",
+    "insurance_agency", "real_estate_agency", "general_contractor", "school",
+    "beauty_salon", "gym", "restaurant", "cafe", "store", "supermarket", "car_repair",
   ];
   const mapa: Record<string, string> = {
     lawyer: "Abogado", accountant: "Contador", doctor: "Médico", medical_clinic: "Clínica",
@@ -302,7 +297,6 @@ for (const p of extraidos) {
       tiene_web: Boolean(p.tiene_web),
       web_deficiente: Boolean(p.web_deficiente),
       giro_sensible: esGiroSensible(p.tipo),
-      giro_independiente: esGiroIndependiente(p.tipo),
     },
     `${p.tipo} ${p.nombre_negocio}`
   );

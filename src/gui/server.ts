@@ -26,7 +26,7 @@ import {
 import { generarEmail, generarSeguimiento, generarRespuesta, generarRetomaConDeepSeek, generarMuestraConDeepSeek, generarUpsellConDeepSeek } from "../envio/deepseek.ts";
 import { PRECIOS, MATRIZ, cotizar, textoCotizacion, htmlCotizacion, cotizarEscalonada, textoCotizacionEscalonada, htmlCotizacionEscalonada } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
-import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces, mensajeRetoma, mensajeMuestra, mensajeFueraDePlanes } from "../envio/anti-ban.ts";
+import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces, mensajeRetoma, mensajeMuestra } from "../envio/anti-ban.ts";
 import { waLink } from "../envio/deepseek.ts";
 import { PLANES, sumaDias, diasRestantes, mensajeRenovacion } from "../lib/mantenimiento.ts";
 import type { PlanMantenimiento } from "../lib/mantenimiento.ts";
@@ -375,7 +375,7 @@ app.post("/api/respuesta", async (c) => {
   return c.json({ ok: true, texto });
 });
 
-// Generador de textos: email, seguimiento, RETOMA, LINK (muestra), FUERA (regla de oro) o legacy upsell.
+// Generador de textos: email, seguimiento, RETOMA, MUESTRA o UPSELL para un prospecto.
 app.post("/api/texto", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const id = String(body.id || "");
@@ -388,13 +388,10 @@ app.post("/api/texto", async (c) => {
     const dias = diasDesde(p.ultimo_contacto || p.enviado_en || p.creado_en) ?? 0;
     texto = await generarRetomaConDeepSeek(p, dias);
   } else if (tipo === "muestra") {
-    // Mensaje 2: el LINK de activación + los 3 planes (solo tras respuesta).
+    // Mensaje 2: acompaña las imágenes del prototipo (sin enlaces en David).
     texto = await generarMuestraConDeepSeek(p);
-  } else if (tipo === "fuera") {
-    // Regla de oro anti-fricción: pedido fuera de los 3 planes → NO educado.
-    texto = mensajeFueraDePlanes(p);
   } else if (tipo === "upsell") {
-    // Legacy (embudo de landings): ahora equivale a pasar el link/detalles.
+    // Track de dashboard: para negocios que YA tienen web buena.
     texto = await generarUpsellConDeepSeek(p);
   } else if (tipo === "seguimiento") {
     texto = await generarSeguimiento(p);

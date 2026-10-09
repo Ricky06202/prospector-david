@@ -1,14 +1,13 @@
 /**
- * LEAD SCORING — NUBE PRIVADA SOBERANA (IaaS, suscripción $10-$50/mes)
- * --------------------------------------------------------------------
- * Público PARA VELOCIDAD DE CONVERSIÓN: freelancers, creadores de contenido,
- * consultores independientes y pequeños negocios con datos sensibles
- * (estudios contables, abogados junior, clínicas pequeñas) SIN equipo IT.
- * EXCLUIR: grandes empresas/corporativos lentos y buscadores de dev custom.
- * La calidad de la web es irrelevante. Modelo 0-100.
+ * LEAD SCORING — NUBE PRIVADA CIFRADA ($50 USDC, pago único)
+ * ----------------------------------------------------------
+ * Prioriza negocios que MANEJAN DATOS SENSIBLES: abogados, contadores,
+ * clínicas/consultorios, consultores y pequeños negocios con información
+ * confidencial. La calidad de su web es IRRELEVANTE para este producto.
+ * Modelo 0-100.
  *
  * DOS MODOS:
- *   filter (DEFAULT) → entran giros sensibles/independientes bajo el umbral.
+ *   filter (DEFAULT) → entran solo giros sensibles que superan el umbral.
  *   rank             → no descarta a nadie (volumen), el score solo ordena.
  *
  * Config (.env):
@@ -35,8 +34,6 @@ export interface DatosReputacion {
   web_deficiente: boolean;
   /** True si el giro maneja datos sensibles (nicho objetivo del nuevo objetivo). */
   giro_sensible: boolean;
-  /** True si es profesional independiente (freelancer/creador): conversión rápida. */
-  giro_independiente?: boolean;
 }
 
 /** Giros OBJETIVO: manejan información confidencial de clientes. */
@@ -48,23 +45,13 @@ export const GIROS_SENSIBLES = [
   "seguros", "inmobiliar", "consultor", "arquitect", "ingenier", "topograf", "actuar",
 ];
 
-/** Profesionales independientes (freelancers/creadores): pagan rápido, sin comité. */
-export const GIROS_INDEPENDIENTES = [
-  "fotograf", "video", "filma", "diseñador", "disenador", "grafic", "creador", "community",
-  "redactor", "writer", "traduct", "intérprete", "interprete", "nutricion", "entrenad",
-  "coach", "tutor", "profesor particular", "guia", "tour", "artesano", "joyero",
-  "esteticista", "maquillaj", "tatua", "barber", "peluquer",
-];
-
-/** EXCLUIDOS por política: retail/gastro/marketing + corporativos lentos. */
+/** EXCLUIDOS por política: retail, gastronomía, tiendas, marketing. */
 export const GIROS_EXCLUIDOS = [
   "restaurant", "comida", "cafeter", "panader", "bar ", "pub", "discotec",
   "tienda", "supermercado", "abarrotes", "minimarket", "boutique", "ropa", "zapater",
   "marketing", "publicidad", "agencia de publicidad", "redes sociales",
   "salon de belleza", "barberia", "gimnasio", "mascota", "veterinari",
   "repuestos", "llantas", "taller", "ferreteria", "construccion", "materiales",
-  // Corporativos/cajas lentas: cadena, banco, aseguradora grande, mayorista.
-  "banco", "cadena", "mayorista", "corporativo", "cooperativa", "mutual", "financiera", "cambiaria",
 ];
 
 function normaliza(tipo: string): string {
@@ -74,11 +61,6 @@ function normaliza(tipo: string): string {
 export function esGiroSensible(tipo: string): boolean {
   const t = normaliza(tipo);
   return GIROS_SENSIBLES.some((g) => t.includes(g));
-}
-
-export function esGiroIndependiente(tipo: string): boolean {
-  const t = normaliza(tipo);
-  return GIROS_INDEPENDIENTES.some((g) => t.includes(g));
 }
 
 export function esGiroExcluido(tipo: string): boolean {
@@ -92,37 +74,28 @@ export const esGiroTradicional = esGiroSensible;
 const RATING_MIN = Number(process.env.SCORE_RATING_MIN || 4.0);
 const RESENAS_MIN = Number(process.env.SCORE_RESENAS_MIN || 10);
 const SCORE_MINIMO = Number(process.env.SCORE_MINIMO || 45);
-// Proxy de "corporativo grande/lento": demasiadas reseñas = empresa con comité de compras.
-const RESENAS_MAX = Number(process.env.SCORE_RESENAS_MAX || 600);
 const SCORE_MODO = (process.env.SCORE_MODO || "filter").toLowerCase();
 
-export const SCORE_UMBRALES = { RATING_MIN, RESENAS_MIN, SCORE_MINIMO, RESENAS_MAX, SCORE_MODO };
+export const SCORE_UMBRALES = { RATING_MIN, RESENAS_MIN, SCORE_MINIMO, SCORE_MODO };
 
 /**
- * Calcula el puntaje. Reglas del modelo de suscripción:
- *  - Giro EXCLUIDO (retail/gastro/marketing/corporativo) → 0 pts, fuera.
- *  - RESENAS > umbral (compra corporativa lenta) → fuera del filtro.
- *  - Giro sensible (+50) o independiente (+45, paga sin comité) | neutro (+0).
- *  - Rating: >=4.5 (+20) | >=4.0 (+12) | >=3.5 (+6).
- *  - Reseñas (cartera activa, pero no corporativo):
+ * Calcula el puntaje. Reglas del nuevo objetivo:
+ *  - Giro EXCLUIDO (retail/gastro/marketing) → 0 pts, fuera.
+ *  - Giro sensible (+50) | giro neutro (+0, solo entra en modo rank).
+ *  - Rating (proxy de cartera activa): >=4.5 (+20) | >=4.0 (+12) | >=3.5 (+6).
+ *  - Reseñas (proxy de cantidad de clientes = cantidad de datos):
  *    >=200 (+15) | >=100 (+12) | >=10 (+10) | >=1 (+5).
- *  - Web propia (+5). La web NO filtra; el tamaño excesivo sí.
+ *  - Web propia (+5): negocio establecido = puede pagar. La web YA NO filtra.
  */
 export function calcularScore(d: DatosReputacion, giroTexto = ""): ScoringResult {
   if (esGiroExcluido(giroTexto)) {
-    return { score: 0, tier: "baja", pasa_filtro: false, motivo: "Excluido: retail/gastro/marketing/corporativo" };
-  }
-  if (d.reseñas > RESENAS_MAX) {
-    return { score: 0, tier: "baja", pasa_filtro: false, motivo: `Corporativo lento: ${d.reseñas} reseñas (decisiones con comité)` };
+    return { score: 0, tier: "baja", pasa_filtro: false, motivo: "Excluido: retail/gastro/marketing (no maneja datos sensibles)" };
   }
 
   const motivos: string[] = [];
   let score = 0;
 
-  if (d.giro_independiente || esGiroIndependiente(giroTexto)) {
-    score += 45;
-    motivos.push("Independiente: decide y paga sin comité");
-  } else if (d.giro_sensible) {
+  if (d.giro_sensible) {
     score += 50;
     motivos.push("Maneja datos sensibles");
   } else {
@@ -143,7 +116,7 @@ export function calcularScore(d: DatosReputacion, giroTexto = ""): ScoringResult
   }
 
   if (d.reseñas >= 200) {
-    score += 12;
+    score += 15;
     motivos.push(`${d.reseñas} clientes reseñan`);
   } else if (d.reseñas >= 100) {
     score += 12;
@@ -162,14 +135,12 @@ export function calcularScore(d: DatosReputacion, giroTexto = ""): ScoringResult
   }
 
   const tier: TierLead = score >= 80 ? "top" : score >= 65 ? "alta" : score >= SCORE_MINIMO ? "media" : "baja";
-  // Conversión por velocidad: independientes y giros sensibles pequeños entran
-  // primero; los neutros solo en modo rank. No exigimos rating (abogados serios
-  // tienen pocas reseñas).
-  const objetivoDirecto = d.giro_sensible || d.giro_independiente || esGiroIndependiente(giroTexto);
+  // OJO: no exigimos rating mínimo — muchos abogados/contadores serios tienen
+  // pocas reseñas. El giro sensible + el umbral de score ya filtran bastante.
   const pasa_filtro =
     SCORE_MODO === "rank"
-      ? !esGiroExcluido(giroTexto) && d.reseñas <= RESENAS_MAX
-      : objetivoDirecto && score >= SCORE_MINIMO;
+      ? !esGiroExcluido(giroTexto)
+      : d.giro_sensible && score >= SCORE_MINIMO;
   return { score, tier, pasa_filtro, motivo: motivos.join(" · ") };
 }
 

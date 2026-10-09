@@ -2,13 +2,13 @@
  * Cliente DeepSeek para generar copys de venta personalizados.
  * Sin API key, se usa una plantilla local de calidad (fallback).
  *
- * PRODUCTO: Nube Privada Soberana (IaaS automatizado) — suscripción mensual
- * $10/$25/$50 según plan, acceso inmediato con link. Nicho: independientes y
- * pequeños negocios con datos sensibles. Nada de setups únicos ni landings.
+ * PRODUCTO: nube privada cifrada, $50 pago único (setup + primer mes),
+ * después $10/mes o export de datos gratis. Nichos de datos sensibles.
  *
- * ANTI-BAN: el mensaje de APERTURA jamás lleva enlaces/PDF/imágenes ni
- * menciona crypto/USDC. El LINK de activación y los precios por plan van
- * recién en el mensaje 2, cuando el contacto ya respondió.
+ * ANTI-BAN: el mensaje de APERTURA jamás lleva enlaces/PDF/imágenes y
+ * NUNCA menciona crypto/USDC/blockchain (regla 5 del objetivo). El tema
+ * de formas de pago aparece recién en los DETALLES (mensaje 2), cuando
+ * el contacto ya respondió.
  */
 import "dotenv/config";
 import type { Prospecto } from "../types.ts";
@@ -16,7 +16,6 @@ import {
   mensajeApertura,
   mensajeMuestra,
   mensajeCierre,
-  mensajeFueraDePlanes,
   mensajeRetoma,
   temaPorTipo,
   esMensajeAperturaSeguro,
@@ -57,7 +56,7 @@ async function chatCompletions(key: string, body: unknown): Promise<Response> {
 }
 
 const SISTEMA_APERTURA =
-  "Eres proveedor de infraestructura cloud en David, Chiriquí, y escribes el PRIMER mensaje de prospección por WhatsApp a independientes y pequeños negocios que manejan datos sensibles. Vendes ACCESO INMEDIATO a una nube privada cifrada ya lista y automatizada: suscripción mensual de $10 (50GB), $25 (200GB con sync móvil y backup diario) o $50 (500GB multiusuario). TONO DE SOLUCIÓN INMEDIATA, no de presupuesto ni de desarrollo a medida. REGLAS CRÍTICAS: sin NINGÚN enlace, sin adjuntos, SIN emojis, y PROHIBIDO escribir crypto, USDC, blockchain, bitcoin o token — siempre 'nube privada cifrada'. Máx 70 palabras, cálido, español de Panamá, sin placeholders. Debe: 1) notar que trabaja con información sensible específica de su giro, 2) destacar que la nube ya está lista — sin instalaciones ni esperas — y que ni el proveedor puede ver sus archivos, 3) mencionar el rango desde $10 al mes, más barato que Dropbox, 4) cerrar preguntando si le pasan el link para activarlo en 2 minutos.";
+  "Eres un desarrollador de software de David, Chiriquí, que escribe el PRIMER mensaje de prospección por WhatsApp a negocios que manejan datos sensibles (abogados, contadores, clínicas, consultorios). Ofreces CONFIGURAR UNA NUBE PRIVADA CIFRADA por $50 de pago único, que incluye la configuración y el primer mes de hosting; después el cliente elige mantenerla por $10/mes o exportar sus datos gratis. REGLAS CRÍTICAS: sin NINGÚN enlace (http, www, wa.me), sin mencionar PDF/imágenes/adjuntos, SIN emojis, y PROHIBIDO escribir crypto, USDC, blockchain, bitcoin o token — siempre 'nube privada cifrada'. Máx 60 palabras, cálido, español de Panamá, sin placeholders ni corchetes. Debe: 1) notar que el negocio maneja información confidencial específica de su giro, 2) mencionar que colegas del área están migrando a nubes privadas cifradas sin suscripciones abusivas, 3) dar el precio $50 pago único con primer mes incluido, 4) cerrar preguntando si le pasan detalles. No prometas nada más.";
 
 /** MENSAJE 1 — APERTURA: corto, sin enlaces/PDF/imágenes y sin mencionar crypto. */
 export async function generarAperturaConDeepSeek(p: Prospecto): Promise<string> {
@@ -67,7 +66,7 @@ export async function generarAperturaConDeepSeek(p: Prospecto): Promise<string> 
   const prompt = [
     `Negocio: ${p.nombre_negocio} (${p.tipo}).`,
     `Datos sensibles que maneja: ${temaPorTipo(p.tipo)}.`,
-    `Escribe el PRIMER mensaje de WhatsApp ofreciendo la nube privada cifrada ya lista (suscripción desde $10 al mes, activación en 2 minutos), sin enlaces, sin emojis y sin mencionar crypto o USDC, cerrando con '¿Te paso el link para activarlo?'.`,
+    `Escribe el PRIMER mensaje de WhatsApp ofreciendo la nube privada cifrada de $50 (pago único con primer mes incluido), sin enlaces, sin emojis y sin mencionar crypto o USDC, cerrando con '¿Te paso detalles?'.`,
   ].join("\n");
 
   try {
@@ -94,9 +93,8 @@ export async function generarAperturaConDeepSeek(p: Prospecto): Promise<string> 
 export async function generarMuestraConDeepSeek(p: Prospecto, _urlPrototipo?: string): Promise<string> {
   const key = process.env.DEEPSEEK_API_KEY;
   if (!key) return mensajeMuestra(p);
-  const url = (process.env.PLATAFORMA_URL || "").trim();
   const sist =
-    "Eres proveedor de una plataforma de nubes privadas cifradas ya automatizada. Escribe el SEGUNDO mensaje de WhatsApp (máx 120 palabras) para quien YA RESPONDIÓ al primer mensaje. NO expliques tecnología ni arquitectura. Español de Panamá, sin emojis, sin placeholders. Debe: 1) listar los 3 planes como opciones cerradas — Básico $10/mes 50GB, Pro $25/mes 200GB con sincronización móvil y backup diario, Negocio $50/mes 500GB con hasta 3 usuarios y soporte prioritario por WhatsApp; 2) decir que la activación toma 2 minutos y todo se gestiona desde su panel; 3) formas de pago: USDC sin comisiones o transferencia bancaria (+10%); 4) " + (url ? "incluir exactamente este enlace de activación: " + url : "ofrecer el link por correo o por chat cuando lo pida") + ". Cerrar con 'si algo falla, me escribes y lo resuelvo en minutos'.";
+    "Eres un desarrollador de software de David, Chiriquí. Escribe el SEGUNDO mensaje de WhatsApp (máx 120 palabras) para un negocio que YA RESPONDIÓ al primer mensaje sobre la nube privada cifrada. Sin enlaces, sin emojis, español de Panamá, sin placeholders. Debe explicar en 4 puntos breves: 1) espacio cifrado solo para ellos, acceso desde celular y computadora, sin escaneo de terceros; 2) $50 de pago único que incluye configuración, capacitación y primer mes de hosting; 3) después: $10/mes O exportar todos sus datos gratis y retirarse sin penalización; 4) formas de pago: USDC sin comisiones o transferencia bancaria con 10% adicional. Cerrar ofreciendo dejarlo configurado esta semana.";
   try {
     const res = await chatCompletions(key, {
       model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
@@ -105,17 +103,12 @@ export async function generarMuestraConDeepSeek(p: Prospecto, _urlPrototipo?: st
         { role: "user", content: `Negocio: ${p.nombre_negocio} (${p.tipo}). Datos que maneja: ${temaPorTipo(p.tipo)}.` },
       ],
       temperature: 0.8,
-      max_tokens: 300,
+      max_tokens: 260,
     });
     if (!res.ok) return mensajeMuestra(p);
     const data = await res.json();
     const texto: string = data?.choices?.[0]?.message?.content?.trim();
-    // El mensaje 2 SÍ puede llevar el enlace de la plataforma: solo validamos que
-    // no meta enlaces extraños distintos al configurado.
-    if (!texto) return mensajeMuestra(p);
-    const enlaces = texto.match(/https?:\/\/\S+/g) || [];
-    const enlacesPermitidos = url ? 1 : 0;
-    return enlaces.length <= enlacesPermitidos ? texto : mensajeMuestra(p);
+    return texto && !contieneEnlaces(texto) ? texto : mensajeMuestra(p);
   } catch {
     return mensajeMuestra(p);
   }
@@ -127,7 +120,7 @@ export async function generarRetomaConDeepSeek(p: Prospecto, dias: number): Prom
   const key = process.env.DEEPSEEK_API_KEY;
   if (!key) return mensajeRetoma(p, dias);
   const sist =
-    "Eres proveedor de una nube privada cifrada con activación en 2 minutos, desde $10 al mes. Escribe UN mensaje de WhatsApp de RETOMA (máx 55 palabras), amable y sin presión, en español de Panamá, sin enlaces, sin emojis, sin placeholders y sin mencionar crypto. Es el ÚNICO seguimiento a quien no respondió. Debe: reconocer la semana ocupada, ofrecer pasar el link de activación si le interesa, y dejar salida elegante ('si no aplica, sin problema').";
+    "Eres un desarrollador de software de David, Chiriquí. Escribe UN mensaje de WhatsApp de RETOMA (máx 55 palabras), amable y sin presión, en español de Panamá, sin enlaces, sin emojis, sin placeholders y sin mencionar crypto. Es el ÚNICO seguimiento a un negocio que no respondió la oferta de nube privada cifrada por $50. Debe: reconocer que la semana está ocupada, ofrecer detalles en dos minutos si le interesa, y dejar una salida elegante ('si no aplica, sin problema').";
   try {
     const res = await chatCompletions(key, {
       model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
@@ -161,13 +154,13 @@ export function waLink(telefono: string, mensaje: string): string {
 /** Email de presentación (fallback). */
 export function emailPlantilla(p: Prospecto): string {
   return [
-    `Asunto: Tu propia nube privada cifrada — activa en 2 minutos, desde $10/mes`,
+    `Asunto: Nube privada cifrada para ${p.nombre_negocio} — $50 pago único`,
     ``,
-    `Hola, mi nombre es Ricardo Sanjur; opero una plataforma de nube privada soberana en David, Chiriquí.`,
+    `Hola, mi nombre es Ricardo Sanjur, desarrollador de software en David, Chiriquí.`,
     ``,
-    `Les escribo porque ${temaPorTipo(p.tipo)} merece un espacio propio: una nube privada cifrada de extremo a extremo donde ni el proveedor puede ver sus archivos. La plataforma ya está montada y automatizada: elegís un plan mensual (Básico $10 con 50GB, Pro $25 con 200GB, sincronización móvil y backup diario, o Negocio $50 con 500GB y hasta 3 usuarios), activás tu cuenta en 2 minutos y empezás a respaldar. Es más barato que Dropbox y 100% privado.`,
+    `Les escribo porque ${temaPorTipo(p.tipo)} merece un espacio propio: una nube privada cifrada que solo ustedes controlan, sin que ningún tercero escanee sus archivos. La configuración cuesta $50 de pago único e incluye el montaje completo, una capacitación breve y el primer mes de hosting. Después ustedes deciden: mantenerla por $10 al mes o exportar todos sus datos gratis y quedarse con ellos.`,
     ``,
-    `Si les interesa, responda este correo y les paso el link de activación hoy mismo. Sin compromiso.`,
+    `Si les interesa, responda este correo y coordinamos la configuración esta misma semana. Sin compromiso.`,
     ``,
     `Quedo atento. ¡Saludos!`,
     `Ricardo Sanjur · Desarrollador de software · David, Chiriquí · WhatsApp 6510-4147`,
@@ -203,7 +196,7 @@ async function llm(sistema: string, prompt: string): Promise<string | null> {
 /** Email de presentación del servicio (DeepSeek si hay key, si no plantilla). */
 export async function generarEmail(p: Prospecto): Promise<string> {
   const sist =
-    "Eres proveedor de una plataforma de nubes privadas cifradas, lista y automatizada. Escribe un CORREO profesional en español de Panamá, sin placeholders, sin emojis y sin enlaces, dirigido a un independiente o pequeño negocio con datos sensibles. Ofrece suscripción mensual: Básico $10/50GB, Pro $25/200GB con sync móvil y backup diario, Negocio $50/500GB multiusuario con soporte prioritario. Tono solución inmediata: activación en 2 minutos desde tu panel, cifrado E2E donde ni el proveedor ve los archivos, más barato que Dropbox, cancelás cuando quieras llevándote tus datos. Pide respuesta para pasar el link. Máx 180 palabras.";
+    "Eres un desarrollador de software de David, Chiriquí. Escribe un CORREO profesional en español de Panamá, sin placeholders, sin emojis y sin enlaces, dirigido a un negocio que maneja datos sensibles. Ofrece la nube privada cifrada: $50 pago único que incluye configuración, capacitación y primer mes de hosting; después $10/mes o export gratis de los datos. Destaca que a diferencia de los servicios compartidos, nadie escanea sus archivos. Pide respuesta para coordinar esta semana. Máx 180 palabras.";
   const llmTxt = await llm(sist, `Negocio: ${p.nombre_negocio} (${p.tipo}), ${p.direccion}. Datos sensibles: ${temaPorTipo(p.tipo)}.`);
   return llmTxt || emailPlantilla(p);
 }
@@ -211,7 +204,7 @@ export async function generarEmail(p: Prospecto): Promise<string> {
 /** Recordatorio amable para prospectos ya contactados (el ÚNICO seguimiento). */
 export async function generarSeguimiento(p: Prospecto): Promise<string> {
   const sist =
-    "Eres proveedor de una nube privada cifrada con suscripciones desde $10 al mes y activación en 2 minutos. Escribe un mensaje de WhatsApp CORTO (máx 60 palabras), cálido y sin presión, en español de Panamá, sin placeholders, sin emojis y sin mencionar crypto. Es el único recordatorio a quien no respondió: ofrece pasar el link de activación si le interesa y deja salida elegante si no aplica.";
+    "Eres un desarrollador de software de David, Chiriquí. Escribe un mensaje de WhatsApp CORTO (máx 60 palabras), cálido y sin presión, en español de Panamá, sin placeholders, sin emojis y sin mencionar crypto. Es el único recordatorio a un negocio que no respondió a la oferta de nube privada cifrada por $50: ofrece los detalles en dos minutos y deja una salida elegante si no le interesa.";
   const llmTxt = await llm(sist, `Negocio: ${p.nombre_negocio} (${p.tipo}).`);
   return llmTxt || seguimientoPlantilla(p);
 }
@@ -219,9 +212,8 @@ export async function generarSeguimiento(p: Prospecto): Promise<string> {
 /** Respuesta sugerida al mensaje entrante de un cliente (asistente de respuestas). */
 export async function generarRespuesta(p: Prospecto, mensajeCliente: string): Promise<string> {
   const sist =
-    "Eres asesor de ventas de una plataforma de Nube Privada Soberana (IaaS automatizado) en David, Chiriquí. El cliente se llama EXACTAMENTE \"" + p.nombre_negocio + "\" y su rubro es \"" + p.tipo + "\" — jamás lo llames de otra forma. El producto es SOLO la suscripción: Básico $10/mes 50GB, Pro $25/mes 200GB con sync móvil y backup diario, Negocio $50/mes 500GB con hasta 3 usuarios y soporte prioritario. REGLA DE ORO: si pide algo fuera de los 3 planes (más espacio, instalar software, desarrollo a medida), se lo NEGÁS con la respuesta estándar: la plataforma está optimizada para esos 3 niveles y quizá no sea su mejor opción. Objeciones: Drive/iCloud escanean y comparten; aquí es cifrado E2E donde ni el proveedor ve nada; el pago es USDC sin comisiones o transferencia (+10%); dudas: todo se gestiona desde el panel y si algo falla lo resolvés en minutos. NO expliques tecnología. Escribe una RESPUESTA corta (máx 120 palabras), cálida, en español de Panamá, sin placeholders ni emojis. Termina ofreciendo el link de activación (2 minutos).";
+    "Eres un asesor de ventas de un desarrollador de software en David, Chiriquí. El negocio se llama EXACTAMENTE \"" + p.nombre_negocio + "\" y su rubro es \"" + p.tipo + "\" — jamás lo llames de otra forma. El producto es una NUBE PRIVADA CIFRADA: $50 de pago único (configuración + capacitación + primer mes de hosting), después $10/mes o export de datos gratis. Manejo de objeciones: si dicen que Google Drive es más barato, responde que Drive es compartido y escanea los datos, y que aquí el pago es único por soberanía real; si preguntan por el pago, ofrece USDC sin comisiones o transferencia (+10%); si dudan del precio, recuerda que incluye configuración completa, capacitación y primer mes, y que su tiempo vale más que 40 horas de prueba y error. Escribe una RESPUESTA corta (máx 140 palabras), cálida y honesta, en español de Panamá, sin placeholders, sin emojis y sin enlaces. Termina proponiendo configurar el espacio esta semana.";
   const prompt = `Negocio: ${p.nombre_negocio} (${p.tipo}). Mensaje entrante del cliente: "${mensajeCliente}". Escribe la respuesta.`;
   const llmTxt = await llm(sist, prompt);
-  const fueraDePlanes = /tb|terabytes?|instalar|software|a medida|personalizad|infinit|ilimitad/i.test(mensajeCliente);
-  return llmTxt || (fueraDePlanes ? mensajeFueraDePlanes(p) : mensajeCierre(p));
+  return llmTxt || mensajeCierre(p);
 }
