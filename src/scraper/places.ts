@@ -1,12 +1,10 @@
 /**
  * Scraper de GOOGLE PLACES API (New) con LEAD SCORING — la vía oficial, sin captchas.
- * OBJETIVO: vender CONFIGURACIÓN DE NUBE PRIVADA CIFRADA ($50 USDC pago único) a
- * negocios que manejan DATOS SENSIBLES: abogados, contadores, clínicas, consultorios,
- * consultores. EXCLUIR retail, restaurantes, tiendas online y marketing.
- * Busca por texto en TODA Chiriquí (provincia + pueblos) y puntúa cada lead
- * (src/lib/lead-scoring.ts):
- *   - Modo filter (default): solo entran giros sensibles sobre el umbral.
- *   - Modo rank: no descarta a nadie; el score solo ordena.
+ * Busca negocios por texto en TODA Chiriquí (provincia + pueblos), devuelve teléfono,
+ * web, coordenadas, rating y reseñas. Luego puntúa cada lead (src/lib/lead-scoring.ts):
+ *   - Modo rank (default): el score solo ORDENA (mejores primero); no descarta a nadie
+ *     con teléfono válido y sin web buena → maximiza el VOLUMEN de leads.
+ *   - Modo filter: solo guarda los que pasan los umbrales.
  *
  * Config (.env):
  *   GOOGLE_PLACES_API_KEY = tu API key de Google Cloud (Places API habilitada + billing)
@@ -25,7 +23,7 @@ import type { Prospecto } from "../types.ts";
 import { normalizarTelefonoPA } from "../lib/telefono.ts";
 import { accentParaTipo } from "../lib/accent.ts";
 import { normalizarNombre, esWebPropia } from "../lib/dedupe.ts";
-import { calcularScore, esGiroSensible, esGiroExcluido, ordenarPorScore, SCORE_UMBRALES } from "../lib/lead-scoring.ts";
+import { calcularScore, esGiroTradicional, ordenarPorScore, SCORE_UMBRALES } from "../lib/lead-scoring.ts";
 import { analizarWebsParalelo } from "../lib/web-quality.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -39,26 +37,39 @@ const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 // pueblo por pueblo. Incluye barridos genéricos ("negocios en X") que atrapan a
 // negocios que ninguna categoría nombra.
 const CATEGORIAS = [
-  // Legal (herencias, contratos, expedientes).
-  "abogados", "estudios jurídicos", "despachos jurídicos", "notarías",
-  // Contable (balances, declaraciones fiscales).
-  "contadores públicos", "despachos contables", "servicios contables", "auditoría",
-  // Salud (historiales clínicos, datos de pacientes).
-  "clínicas privadas", "consultorios médicos", "clínicas dentales", "psicólogos",
-  "psiquiatras", "laboratorios clínicos", "optometrías", "fisioterapia",
-  // Otros con información confidencial de clientes.
-  "agencias de seguros", "inmobiliarias", "consultoras", "colegios privados",
+  // Tradicionales (estrategia): agro, logística, construcción, servicios.
+  "agropecuarias", "insumos agrícolas", "agroservicios", "plantaciones", "procesadoras de alimentos",
+  "ferreterías", "materiales de construcción", "empresas de construcción", "servicios de ingeniería",
+  "empresas de transporte", "encomiendas", "empresas de logística",
+  // Gastronomía y consumo.
+  "restaurantes", "cafeterías", "panaderías", "supermercados", "tiendas de abarrotes", "venta de carnes",
+  // Salud y belleza.
+  "salones de belleza", "barberías", "gimnasios", "veterinarias", "farmacias", "clínicas médicas",
+  "clínicas dentales", "ópticas",
+  // Automotriz.
+  "talleres mecánicos", "tiendas de repuestos", "venta de llantas", "estética automotriz", "refrigeración y aire acondicionado",
+  // Comercio y servicios.
+  "tiendas de ropa", "tiendas de celulares", "tiendas de deportes", "papelerías", "mueblerías",
+  "joyerías", "florerías", "lavanderías", "electrónicos",
+  // Profesionales.
+  "abogados", "notarías", "servicios contables", "agencias de seguros", "inmobiliarias", "consultorías",
+  // Turismo y otros.
+  "agencias de viajes", "hoteles", "imprentas", "eventos y publicidad", "seguridad privada",
 ];
 // Categorías de mayor volumen que además se buscan pueblo por pueblo.
 const CATEGORIAS_POR_PUEBLO = [
-  "abogados", "contadores públicos", "notarías", "clínicas privadas", "psicólogos",
+  "restaurantes", "farmacias", "salones de belleza", "barberías",
+  "talleres mecánicos", "ferreterías", "agropecuarias", "gimnasios", "tiendas de ropa",
 ];
 const PUEBLOS = ["Boquete", "Volcán", "Bugaba", "La Concepción", "Puerto Armuelles", "Alanje"];
 
 const GIROS = [
   ...CATEGORIAS.map((c) => `${c} en Chiriquí`),
   ...CATEGORIAS_POR_PUEBLO.flatMap((c) => PUEBLOS.map((p) => `${c} en ${p}, Chiriquí`)),
-  // Sin barridos genéricos ("negocios/empresas en X"): traen retail excluido.
+  // Barridos genéricos: atrapan lo que ninguna categoría nombra.
+  "negocios en Chiriquí",
+  "empresas en Chiriquí",
+  ...PUEBLOS.map((p) => `negocios en ${p}, Chiriquí`),
 ];
 
 // Si no configuraste PLACES_QUERIES, corre toda la lista curada.
@@ -90,19 +101,20 @@ const FIELDS = [
 /** Devuelve un nombre legible desde el arreglo de tipos de Places. */
 function tipoLegible(types: string[]): string {
   const orden = [
-    "lawyer", "accountant", "doctor", "medical_clinic", "clinic", "health", "hospital",
-    "dentist", "psychologist", "physiotherapist", "optometrist", "pharmacy", "laboratory",
-    "insurance_agency", "real_estate_agency", "general_contractor", "school",
-    "beauty_salon", "gym", "restaurant", "cafe", "store", "supermarket", "car_repair",
+    "restaurant", "cafe", "bar", "beauty_salon", "hair_care", "gym", "health",
+    "doctor", "veterinary_care", "car_repair", "auto_parts_store", "store",
+    "supermarket", "lawyer", "travel_agency", "lodging", "dentist", "pharmacy",
+    "agricultural_supplier", "farm", "bus_station", "transit_station", "general_contractor",
+    "electrician", "plumber", "building_material_store", "locksmith",
   ];
   const mapa: Record<string, string> = {
-    lawyer: "Abogado", accountant: "Contador", doctor: "Médico", medical_clinic: "Clínica",
-    clinic: "Clínica", health: "Salud", hospital: "Clínica", dentist: "Clínica dental",
-    psychologist: "Psicólogo", physiotherapist: "Fisioterapia", optometrist: "Optometría",
-    pharmacy: "Farmacia", laboratory: "Laboratorio", insurance_agency: "Seguros",
-    real_estate_agency: "Inmobiliaria", general_contractor: "Construcción", school: "Colegio",
-    beauty_salon: "Salón de belleza", gym: "Gimnasio", restaurant: "Restaurante", cafe: "Cafetería",
-    store: "Tienda", supermarket: "Supermercado", car_repair: "Taller automotriz",
+    restaurant: "Restaurante", cafe: "Cafetería", bar: "Bar", beauty_salon: "Salón de belleza",
+    hair_care: "Peluquería", gym: "Gimnasio", health: "Salud", doctor: "Médico",
+    veterinary_care: "Veterinaria", car_repair: "Taller automotriz", auto_parts_store: "Repuestos",
+    store: "Tienda", supermarket: "Supermercado", lawyer: "Abogado", travel_agency: "Agencia de viajes",
+    lodging: "Hotel", dentist: "Clínica dental", pharmacy: "Farmacia",
+    agricultural_supplier: "Insumos agro", farm: "Agro", general_contractor: "Construcción",
+    electrician: "Servicios eléctricos", plumber: "Plomería", building_material_store: "Materiales de construcción",
   };
   for (const t of orden) if (types.includes(t)) return mapa[t] || t.replace(/_/g, " ");
   return types[0]?.replace(/_/g, " ") || "Negocio local";
@@ -111,7 +123,9 @@ function tipoLegible(types: string[]): string {
 const extraidos: Prospecto[] = [];
 let descartados = 0;        // sin nombre/teléfono
 let duplicados = 0;         // ya existían en la base (teléfono/nombre)
-let noPasanFiltro = 0;      // excluido o bajo el umbral de datos sensibles
+let sinReputacion = 0;      // rating o reseñas bajo el umbral
+let conWebBuena = 0;        // web propia en buen estado → track upsell
+let fallaScoring = 0;       // no pasa el puntaje mínimo
 
 /**
  * Busca con PAGINACIÓN: la API devuelve máx 20 por petición pero permite seguir
@@ -224,8 +238,8 @@ for (const q of aCorrer) {
     const tieneWebRaw = l.websiteUri && esWebPropia(l.websiteUri, "https://www.google.com/maps");
     const tieneWeb = Boolean(tieneWebRaw);
 
-    // NOTA: la web NO influye en este embudo (nube $50); se analiza solo para
-    // capturar emails de contacto y enriquecer el perfil.
+    // NOTA: ya NO se descarta al que tiene web. Pasa al análisis de calidad y se
+    // clasifica: web buena → track UPSELL; web deficiente → track LANDING.
     extraidos.push({
       id: normalizarNombre(nombre).replace(/\s+/g, "-").slice(0, 60) || `places-${extraidos.length}`,
       nombre_negocio: nombre,
@@ -285,51 +299,66 @@ if (ANALIZAR_WEB) {
   }
 }
 
-// ---- LEAD SCORING + ranking — embudo único: NUBE PRIVADA CIFRADA ----
-// La web propia es irrelevante (un abogado con web perfecta también paga $50
-// por soberanía de datos). Se puntúa por giro sensible + reputación + tamaño.
-const puntuados: Prospecto[] = [];
+// ---- LEAD SCORING + ranking + TRACK (landing / upsell) ----
+const puntuados: Prospecto[] = [];   // track LANDING ($300, sin web / web deficiente)
+const upsells: Prospecto[] = [];     // track UPSELL (dashboard $1,200, ya tiene web buena)
 for (const p of extraidos) {
-  const sc = calcularScore(
-    {
-      rating: p.rating ?? 0,
-      reseñas: p.reseñas ?? 0,
-      tiene_web: Boolean(p.tiene_web),
-      web_deficiente: Boolean(p.web_deficiente),
-      giro_sensible: esGiroSensible(p.tipo),
-    },
-    `${p.tipo} ${p.nombre_negocio}`
-  );
+  // Web propia confirmada en buen estado → candidato a UPSEL (tiene presencia digital).
+  if (p.tiene_web && p.web_deficiente === false) {
+    p.tipo_lead = "upsell";
+    p.lead_score = 0;
+    p.tier_lead = "baja";
+    p.scoring_motivo = "Ya tiene web propia en buen estado → candidato a plataforma/dashboard";
+    upsells.push(p);
+    conWebBuena++;
+    continue;
+  }
+  const sc = calcularScore({
+    rating: p.rating ?? 0,
+    reseñas: p.reseñas ?? 0,
+    tiene_web: Boolean(p.tiene_web),
+    web_deficiente: Boolean(p.web_deficiente),
+    giro_tradicional: esGiroTradicional(p.tipo),
+  });
+  if (sc.score === 0) {
+    conWebBuena++;
+    continue;
+  }
   if (!sc.pasa_filtro) {
-    noPasanFiltro++;
+    const bajoRating = p.rating !== undefined && p.rating < SCORE_UMBRALES.RATING_MIN;
+    const bajasReseñas = (p.reseñas ?? 0) < SCORE_UMBRALES.RESENAS_MIN;
+    if (bajoRating || bajasReseñas) sinReputacion++;
+    else fallaScoring++;
     continue;
   }
   p.lead_score = sc.score;
   p.tier_lead = sc.tier;
   p.scoring_motivo = sc.motivo;
-  p.tipo_lead = "nube";
+  p.tipo_lead = "landing";
   puntuados.push(p);
 }
 
-const todos: Prospecto[] = puntuados;
+// Se fusionan AMBOS tracks a prospectos.json (landing + upsell marcados).
+const todos: Prospecto[] = [...puntuados, ...upsells];
 const ordenados = ordenarPorScore(todos);
 const finales = TOPN > 0 ? ordenados.slice(0, TOPN) : ordenados;
 const descartadosPorTop = ordenados.length - finales.length;
 
 console.log(
   `[places] Modo: ${SCORE_UMBRALES.SCORE_MODO} · Sin nombre/teléfono: ${descartados} · Duplicados: ${duplicados} · ` +
-  `Excluidos/bajo umbral: ${noPasanFiltro} · Top descartado: ${descartadosPorTop}`
+  `Web buena → UPSEL: ${upsells.length} · Sin reputación: ${sinReputacion} · ` +
+  `No pasa score: ${fallaScoring} · Top descartado: ${descartadosPorTop}`
 );
 
 for (const p of finales) {
-  console.log(`  + [${p.tier_lead}] ${p.nombre_negocio.slice(0, 36)} · ${p.tipo} · score ${p.lead_score}`);
+  console.log(`  + [${p.tipo_lead === "upsell" ? "UPSEL" : p.tier_lead}] ${p.nombre_negocio.slice(0, 36)} · ${p.tipo_lead === "upsell" ? "web buena" : `score ${p.lead_score} · ${p.tiene_web ? "web deficiente" : "sin web"}`}`);
 }
 
 // ---- Fusión: los candidatos ya se deduplicaron contra previos en el loop. ----
 const mapa = new Map(previos.map((p) => [p.id, p]));
 for (const p of finales) mapa.set(p.id, p);
 await writeFile(DATA_FILE, JSON.stringify([...mapa.values()], null, 2), "utf-8");
-console.log(`[places] Leads nube: ${finales.length} · Nuevos: ${finales.length} · Duplicados: ${duplicados} · Total: ${mapa.size}`);
+console.log(`[places] Leads: ${finales.length} (landing+upsell) · Nuevos: ${finales.length} · Duplicados: ${duplicados} · Total: ${mapa.size}`);
 
 // Guarda el estado de queries para el planificador.
 await writeFile(ESTADO_FILE, JSON.stringify([...estadoPorQuery.values()], null, 2), "utf-8");

@@ -1,19 +1,19 @@
 /**
- * SISTEMA ANTI-BAN DE WHATSAPP + SECUENCIA "NUBE PRIVADA CIFRADA"
- * ---------------------------------------------------------------
- * Producto: configuración de nube privada cifrada por $50 (pago único,
- * incluye setup + primer mes de hosting; después $10/mes o export gratis).
- * Nichos: abogados, contadores, clínicas/consultorios, consultores y
- * negocios con información confidencial. NO se venden landings.
+ * SISTEMA ANTI-BAN DE WHATSAPP
+ * ----------------------------
+ * Estrategia en 3 capas para que la cuenta no sea bloqueada por Meta:
  *
- *  1) SECUENCIA EN 2 MENSAJES: la "apertura" es corta, SIN enlaces, SIN
- *     imágenes y SIN mencionar crypto/blockchain/USDC (regla del objetivo:
- *     la palabra crypto solo sale cuando el cliente ya respondió). El
- *     mensaje 2 ("detalles") es donde van precio completo y formas de pago.
- *  2) DELAYS DINÁMICOS con jitter + pausas + factor nocturno.
- *  3) TOPE DIARIO: 20-30 contactos por sesión/día (WA_MAX_SESION default 25).
- *  4) SEGUIMIENTO ÚNICO: a las 48h sin respuesta, UN solo mensaje amable;
- *     después se DESCARTA (no hay segundos reintentos).
+ *  1) SECUENCIA EN 2 MENSAJES: el primer mensaje ("apertura") es CORTO y
+ *     NO contiene enlaces, PDFs, ni imágenes. Solo busca la respuesta del
+ *     dueño. El material pesado (enlace al prototipo + 6 capturas) se envía
+ *     como SEGUNDO mensaje, únicamente después de que el contacto responde.
+ *
+ *  2) DELAYS DINÁMICOS: cada envío se espacia con un delay humano con jitter
+ *     (aleatorio), que crece con cada envío y se duplica en horario nocturno.
+ *     Cada N envíos se inserta una pausa larga (configurable).
+ *
+ *  3) VARIACIÓN: los templates rotan aperturas para no repetir la misma huella
+ *     de texto (las cuentas masivas se detectan por mensajes idénticos).
  */
 import "dotenv/config";
 import type { Prospecto } from "../types.ts";
@@ -42,11 +42,10 @@ export function configAntiBan(): ConfigAntiBan {
     delayBase: Number(process.env.WA_DELAY_BASE || 45000),          // 45 s
     delayJitter: Number(process.env.WA_DELAY_JITTER || 90000),      // +0-90 s
     factorNocturno: Number(process.env.WA_FACTOR_NOCTURNO || 2.5),  // x2.5 de noche
-    pausaCada: Number(process.env.WA_PAUSA_CADA || 6),              // pausa cada 6
+    pausaCada: Number(process.env.WA_PAUSA_CADA || 8),              // pausa cada 8
     pausaMin: Number(process.env.WA_PAUSA_MIN || 30) * 60000,       // 30 min
     pausaMax: Number(process.env.WA_PAUSA_MAX || 60) * 60000,       // 60 min
-    // Regla del objetivo: máximo 20-30 contactos/día para no quemar la cuenta.
-    maxPorSesion: Number(process.env.WA_MAX_SESION || 25),
+    maxPorSesion: Number(process.env.WA_MAX_SESION || 0),           // sin tope
   };
 }
 
@@ -98,86 +97,102 @@ export function planDeRitmo(n: number, cfg: ConfigAntiBan = configAntiBan()): { 
 }
 
 // ---------------------------------------------------------------
-// PERSONALIZACIÓN POR GIRO
-// ---------------------------------------------------------------
-
-/** Qué datos sensibles maneja este tipo de negocio (para el gancho del mensaje 1). */
-export function temaPorTipo(tipo: string): string {
-  const t = (tipo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/abogad|legal|juridic|notar|herencia/.test(t)) return "herencias, contratos y expedientes de casos";
-  if (/contad|contabl|auditor|fiscal|impuesto/.test(t)) return "balances, declaraciones y datos fiscales de tus clientes";
-  if (/psicolog|psiquiatr/.test(t)) return "notas de sesión y expedientes de pacientes";
-  if (/clinic|medic|salud|dental|paciente|hospital/.test(t)) return "historiales clínicos y datos de pacientes";
-  if (/laboratori/.test(t)) return "resultados de laboratorio y datos de pacientes";
-  if (/seguro/.test(t)) return "pólizas y datos personales de asegurados";
-  if (/inmobiliar/.test(t)) return "contratos de compra-venta y datos de clientes";
-  if (/colegio|escuel/.test(t)) return "expedientes y datos de estudiantes y apoderados";
-  if (/consultor|arquitect|ingenier|topograf|actuar/.test(t)) return "proyectos e información confidencial de tus clientes";
-  return "información confidencial de tus clientes";
-}
-
-// ---------------------------------------------------------------
 // SECUENCIA DE MENSAJES
 // ---------------------------------------------------------------
 
 /**
- * MENSAJE 1 — APERTURA. Corto, sin enlaces/imágenes y SIN la palabra crypto,
- * blockchain, USDC o similar (regla operativa 5). Solo "nube privada cifrada".
+ * MENSAJE 1 — APERTURA. Corto, sin enlaces/PDF/imágenes.
+ * Su único objetivo es arrancar conversación y pedir permiso para enviar la muestra.
  */
 export function mensajeApertura(p: Prospecto): string {
-  const tema = temaPorTipo(p.tipo);
   const aperturas = [
-    `Hola ${p.nombre_negocio}: vi que manejás ${tema}. Muchos colegas del área están migrando a nubes privadas cifradas para proteger esos datos sin suscripciones abusivas. Configuro tu espacio privado por $50 — pago único que incluye el setup y el primer mes de hosting. Después elegís: mantenerlo por $10/mes o llevarte tus datos gratis. ¿Te paso detalles?`,
-    `Buenas ${p.nombre_negocio}: si hoy tu información sensible vive en un Drive compartido o en un pendrive, eso puede cambiar. Te monto una nube privada cifrada, solo para ti, por $50 de pago único (setup y primer mes incluidos). ¿Te explico en 2 minutos?`,
-    `Hola ${p.nombre_negocio}: atendés ${tema}, justamente el tipo de información que no debería estar en un servicio que la escanea. Configuro tu espacio privado cifrado por $50, pago único con primer mes incluido. ¿Te comparto cómo funciona?`,
+    `Hola ${p.nombre_negocio}: mi equipo y yo preparamos una muestra gratis de cómo se vería su negocio en internet, con su ubicación en Google Maps y botón directo de WhatsApp.`,
+    `Buenas ${p.nombre_negocio}: les diseñamos una vista previa gratis de su negocio en la web, lista para recibir clientes por WhatsApp.`,
+    `Hola ${p.nombre_negocio}: les tenemos una sorpresa, una muestra gratis de su presencia digital, con mapa y botón de WhatsApp, sin costo ni compromiso.`,
   ];
-  return aperturas[Math.floor(Math.random() * aperturas.length)];
-}
-
-/**
- * MENSAJE 2 — DETALLES. Se envía SOLO si el contacto respondió. Aquí sí van
- * las formas de pago (USDC o transferencia) y la comparación con Drive.
- * Sin enlaces: todo el valor cabe en el texto (funciona en David sin links).
- */
-export function mensajeMuestra(p: Prospecto, _urlPrototipo?: string): string {
-  const tema = temaPorTipo(p.tipo);
+  const base = aperturas[Math.floor(Math.random() * aperturas.length)];
   return [
-    `¡Gracias por responder, ${p.nombre_negocio}! Te lo resumo en 4 puntos:`,
+    base,
     ``,
-    `1) Tu espacio privado cifrado para ${tema}: accedés desde el celular y la computadora, con tu propia cuenta. Nadie más entra; no lo escanea ningún tercero.`,
-    `2) Setup, capacitación y el primer mes de hosting van incluidos por $50 de pago único. Sin contratos ni permanencia.`,
-    `3) El mes siguiente elegís: mantenerlo por $10/mes, o te exportás TODOS los datos gratis y te quedás con ellos.`,
-    `4) Forma de pago: USDC sin comisiones, o transferencia bancaria (+10%). Lo hago todo yo, vos solo me pasás qué carpetas necesitás.`,
-    ``,
-    `¿Te lo configuro esta semana?`,
+    `¿Se las comparto por aquí? Son solo 2 minutos para verla.`,
   ].join("\n");
 }
 
 /**
- * MENSAJE 3 — CIERRE / MANEJO DE OBJECIONES. Para quien respondió pero duda
- * del precio o compara con Google Drive. Sin enlaces.
+ * MENSAJE 2 — MUESTRA. Se envía SOLO si el contacto respondió.
+ * En David, Chiriquí NO se envían enlaces (los clientes temen estafas):
+ * este mensaje acompaña las IMÁGENES del prototipo que el humano adjunta.
+ * Solo si ENVIAR_ENLACES=true se inserta el enlace al prototipo.
  */
-export function mensajeCierre(_p: Prospecto): string {
+export function mensajeMuestra(p: Prospecto, urlPrototipo?: string): string {
+  const conEnlaces = urlPrototipo && process.env.ENVIAR_ENLACES === "true";
+  const lineas = [
+    `¡Gracias por responder, ${p.nombre_negocio}!`,
+    ``,
+    `Les adjunto unas vistas de cómo se vería su página en internet:`,
+  ];
+  if (conEnlaces) {
+    lineas.push(``);
+    lineas.push(`Ver prototipo: ${urlPrototipo}`);
+  } else {
+    lineas.push(`(les envío las imágenes aquí en el chat)`);
+  }
+  lineas.push(
+    ``,
+    `Incluye su ubicación en Google Maps, botón directo de WhatsApp y diseño que se adapta a celular y computadora.`,
+    ``,
+    `¿Qué opinan? Si les gusta, la armamos con dominio propio, diseño a medida y soporte continuo. Sin compromiso.`,
+  );
+  return lineas.join("\n");
+}
+
+/**
+ * MENSAJE 3 — CIERRE / SEGUIMIENTO. Para quien respondió pero no cierra.
+ * Sembrar el upsell institucional de forma sutil. Sin enlaces.
+ */
+export function mensajeCierre(p: Prospecto): string {
   return [
-    `Entiendo la duda, es la pregunta más común.`,
+    `Hola ${p.nombre_negocio}: ¿Alcanzaron a ver las vistas que les envié de su página?`,
     ``,
-    `Google Drive cuesta $3/mes pero es compartido: la plataforma escanea tus archivos y el alquiler nunca termina. Los $50 de la nube privada son pago único por un espacio cifrado que es solo tuyo, con configuración completa, capacitación y el primer mes de hosting dentro. Después decidís: $10/mes si querés seguir con nosotros, o te llevás tus datos gratis. Tu tiempo vale más que 40 horas de prueba y error.`,
+    `Si les interesa, además de la página podemos montarles un panel para controlar pedidos, citas o su operación diaria desde el celular.`,
     ``,
-    `¿Lo probamos esta semana?`,
+    `Solo díganme y les paso los detalles. Sin compromiso, ¡saludos!`,
   ].join("\n");
 }
 
 /**
- * MENSAJE DE RETOMA — UN solo seguimiento a las 48h (regla operativa 4).
- * Pasados esos días sin respuesta, se DESCARTA: no genera segundo intento.
+ * MENSAJE DE RETOMA — para quien NO respondió ni leyó el primer mensaje.
+ * Se envía días/semanas/meses después. Se adapta a los días transcurridos
+ * y NUNCA lleva enlaces: solo se refiere a las imágenes que se adjuntan.
+ *  - <7 días:   nudge corto.
+ *  - 7-30 días: retoma (muchos no leen el primer mensaje).
+ *  - >30 días:  retoma en frío (re-apertura como si fuera nuevo).
  */
 export function mensajeRetoma(p: Prospecto, dias: number): string {
-  if (dias > 7) return ""; // ventana cerrada: descartar, no insistir
-  const tema = temaPorTipo(p.tipo);
+  if (dias <= 7) {
+    return [
+      `Hola ${p.nombre_negocio}:`,
+      ``,
+      `¿Alcanzaron a ver el mensaje que les envié? Les adjunto de nuevo las vistas de su página por si se les pasó.`,
+      ``,
+      `Si les gusta, la armamos con dominio propio, diseño a medida y soporte continuo. Sin compromiso. ¡Saludos!`,
+    ].join("\n");
+  }
+  if (dias <= 30) {
+    return [
+      `Hola ${p.nombre_negocio}:`,
+      ``,
+      `Les escribí hace unos días con una muestra de su negocio en internet. Sé que el primer mensaje muchas veces se pierde, así que les dejo por aquí las vistas otra vez.`,
+      ``,
+      `¿Qué opinan? Solo díganme y les comparto los detalles. Sin compromiso.`,
+    ].join("\n");
+  }
   return [
     `Hola ${p.nombre_negocio}:`,
     ``,
-    `Te escribí hace un par de días sobre la nube privada cifrada para ${tema}. Sé que la semana tiene — si el tema te interesa, te paso los detalles en 2 minutos. Si no aplica, sin problema y gracias por tu tiempo.`,
+    `Les escribí hace un tiempo con una muestra gratis de cómo se vería su negocio en internet. Como no sabía si la vieron, les vuelvo a compartir las vistas aquí en el chat.`,
+    ``,
+    `Sigue disponible, sin compromiso. Si les interesa, con gusto les doy más detalles. ¡Saludos!`,
   ].join("\n");
 }
 
@@ -195,13 +210,12 @@ export function secuenciaMensajes(
 }
 
 /**
- * Guardia de seguridad del mensaje de APERTURA: jamás enlaces, adjuntos,
- * emojis ni la palabra crypto/USDC/blockchain (regla 5 del objetivo).
+ * Guardia de seguridad: el mensaje de APERTURA jamás debe contener
+ * enlaces, PDFs, imágenes pesadas ni adjuntos. Devuelve true si es seguro.
  */
-const PATRON_BLOQUEADO =
-  /(https?:\/\/|www\.|wa\.me|\.pdf\b|\.docx?\b|\.xlsx?\b|\.zip\b|\.png\b|\.jpe?g\b|\.webp\b|\.gif\b|📎|⬇|adjunto|[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]|crypto|criptomoned|blockchain|descentraliz|bitcoin|\bbtc\b|usdt|usdc|stablecoin|token|nft)/iu;
+const PATRON_BLOQUEADO = /(https?:\/\/|www\.|wa\.me|\.pdf\b|\.docx?\b|\.xlsx?\b|\.zip\b|\.png\b|\.jpe?g\b|\.webp\b|\.gif\b|📎|⬇|adjunto|[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}])/u;
 export function esMensajeAperturaSeguro(texto: string): boolean {
-  return texto.length > 0 && texto.length <= 600 && !PATRON_BLOQUEADO.test(texto);
+  return texto.length > 0 && texto.length <= 500 && !PATRON_BLOQUEADO.test(texto);
 }
 
 /** ¿El texto contiene algún enlace? (David: nunca enviar enlaces). */

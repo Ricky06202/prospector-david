@@ -23,7 +23,7 @@ import type { Prospecto } from "../types.ts";
 import { normalizarTelefonoPA } from "../lib/telefono.ts";
 import { accentParaTipo } from "../lib/accent.ts";
 import { normalizarNombre, esWebPropia } from "../lib/dedupe.ts";
-import { calcularScore, esGiroSensible } from "../lib/lead-scoring.ts";
+import { calcularScore, esGiroTradicional } from "../lib/lead-scoring.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
@@ -157,7 +157,7 @@ async function extraer(): Promise<Prospecto[]> {
           reseñas: detalle.reseñas,
           tiene_web: tieneWeb,
           web_deficiente: false,
-          giro_sensible: esGiroSensible(detalle.tipo || ""),
+          giro_tradicional: esGiroTradicional(detalle.tipo || ""),
         });
         encontrados.push({
           id,

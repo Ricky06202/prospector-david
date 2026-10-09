@@ -1,29 +1,27 @@
 /**
- * Cotizador — NUBE PRIVADA CIFRADA.
+ * Cotizador: precios configurables y generación de cotizaciones.
+ * Los precios se ajustan por env (PRECIO_*); por defecto valores sugeridos.
  *
- * OFERTA ÚNICA (nuevo objetivo):
- *   Setup $50 de pago único — incluye configuración completa, capacitación
- *   y el PRIMER MES de hosting.
- *   Después el cliente elige: $10/mes de hosting, o export de TODOS sus
- *   datos gratis y se va sin penalización. No se venden landings.
- *
- * Pago: USDC sin comisiones, o transferencia bancaria (+10%).
- * Los montos se ajustan por env (PRECIO_SETUP / PRECIO_MENSUAL).
+ * ESTRATEGIA ESCALONADA ("Caballo de Troya"):
+ *   Nivel 1 (Apertura): Landing optimizada en 24 h por $300 USD.
+ *   Nivel 2 (Upsell):   Plataforma Operativa / Dashboard a la medida desde $1,200 USD,
+ *                       bajo el paraguas y garantía de la empresa matriz.
  */
 import "dotenv/config";
 
 export const PRECIOS = {
-  /** Pago único: configuración + capacitación + primer mes de hosting. */
-  setup: Number(process.env.PRECIO_SETUP || 50),
-  /** Renovación mensual del hosting si decide quedarse. */
-  mensual: Number(process.env.PRECIO_MENSUAL || 10),
-  /** Alias para la GUI: el "mantenimiento" de este producto es el hosting. */
-  mantenimiento: Number(process.env.PRECIO_MENSUAL || 10),
-  mantenimientoTrimestral: Number(process.env.PRECIO_MENSUAL || 10) * 3,
-  mantenimientoSemestral: Number(process.env.PRECIO_MENSUAL || 10) * 6,
+  landing: Number(process.env.PRECIO_LANDING || 300),
+  catalogoBase: Number(process.env.PRECIO_CATALOGO_BASE || 400),
+  porProducto: Number(process.env.PRECIO_POR_PRODUCTO || 2),
+  ecommerce: Number(process.env.PRECIO_ECOMMERCE || 800),
+  mantenimiento: Number(process.env.PRECIO_MANTENIMIENTO || 25),
+  mantenimientoTrimestral: Number(process.env.PRECIO_MANT_TRIMESTRAL || 60),
+  mantenimientoSemestral: Number(process.env.PRECIO_MANT_SEMESTRAL || 100),
+  /** Nivel 2 del upsell institucional (desde). */
+  plataforma: Number(process.env.PRECIO_PLATAFORMA || 1200),
 };
 
-/** Datos de la empresa matriz que respalda el servicio (autoridad + garantía). */
+/** Datos de la empresa matriz que respalda el Nivel 2 (autoridad + garantía). */
 export const MATRIZ = {
   nombre: process.env.MATRIZ_NOMBRE || "Topografía Especializada S.A.",
   rubro: process.env.MATRIZ_RUBRO || "Empresa de ingeniería y desarrollo de software",
@@ -33,10 +31,10 @@ export const MATRIZ = {
 };
 
 export type PlanMantenimiento = "mensual" | "trimestral" | "semestral";
-export type TipoProyecto = "nube";
+export type TipoProyecto = "landing" | "catalogo" | "ecommerce" | "mantenimiento";
 
 export const PLANES: Record<PlanMantenimiento, { dias: number; precio: number; label: string }> = {
-  mensual: { dias: 30, precio: PRECIOS.mensual, label: "Mensual" },
+  mensual: { dias: 30, precio: PRECIOS.mantenimiento, label: "Mensual" },
   trimestral: { dias: 90, precio: PRECIOS.mantenimientoTrimestral, label: "Trimestral" },
   semestral: { dias: 180, precio: PRECIOS.mantenimientoSemestral, label: "Semestral" },
 };
@@ -52,52 +50,61 @@ export interface Cotizacion {
   total: number;
 }
 
-/** Cotiza el servicio (único): setup $50 + continuidad opcional según plan elegido. */
-export function cotizar(_tipo: TipoProyecto = "nube", _productos = 0, plan = "sin"): Cotizacion {
+/** Calcula la cotización: proyecto + plan de mantenimiento (si lo hay) = TOTAL INICIAL. */
+export function cotizar(tipo: TipoProyecto, productos = 0, plan = "sin"): Cotizacion {
+  let baseProyecto = 0;
+  let tipoLabel: string;
+  if (tipo === "landing") {
+    baseProyecto = PRECIOS.landing;
+    tipoLabel = "Landing de presentación";
+  } else if (tipo === "catalogo") {
+    baseProyecto = PRECIOS.catalogoBase + productos * PRECIOS.porProducto;
+    tipoLabel = "Catálogo en línea + pedidos por WhatsApp";
+  } else if (tipo === "ecommerce") {
+    baseProyecto = PRECIOS.ecommerce;
+    tipoLabel = "Tienda en línea con pagos";
+  } else {
+    tipoLabel = "Mantenimiento recurrente";
+  }
   const planInfo = plan !== "sin" && plan in PLANES ? PLANES[plan as PlanMantenimiento] : null;
-  const total = PRECIOS.setup; // el primer mes ya está dentro del setup
-  return {
-    tipo: "nube",
-    tipoLabel: "Nube privada cifrada — configuración por $50 de pago único",
-    baseProyecto: PRECIOS.setup,
-    productos: 0,
-    porProducto: 0,
-    plan,
-    planInfo,
-    total,
-  };
+  const total = baseProyecto + (planInfo ? planInfo.precio : 0);
+  return { tipo, tipoLabel, baseProyecto, productos, porProducto: PRECIOS.porProducto, plan, planInfo, total };
 }
 
-const QUE_INCLUYE = [
-  "Espacio de archivos cifrado, solo para tu negocio: ningún tercero accede ni escanea tus documentos.",
-  "Acceso desde celular y computadora con tu propia cuenta, y usuarios adicionales para tu equipo.",
-  "Migración guiada de tus archivos actuales (Drive, pendrive o correos).",
-  "Capacitación en vivo para que tu equipo lo use desde el primer día.",
-  "Primer mes de hosting incluido dentro de los $50.",
-];
+/** HTML de cotización con marca (para el PDF) — limpio y profesional. */
+export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, productos: number, plan: string, fecha: string): string {
+  const c = cotizar(tipo, productos, plan);
+  const fila = (nombre: string, monto: number) =>
+    `<tr><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">B/. ${monto.toFixed(2)}</td></tr>`;
 
-const CONTINUIDAD = [
-  "Después del primer mes, tú decides: continuar por $10/mes…",
-  "…o exportar TODOS tus datos gratis y llevártelos, sin penalización ni contrato.",
-];
+  const filas = tipo === "catalogo"
+    ? fila("Base del catálogo", PRECIOS.catalogoBase) +
+      fila(`Publicación de ${productos} productos`, productos * PRECIOS.porProducto)
+    : tipo !== "mantenimiento"
+      ? fila("Proyecto", c.baseProyecto)
+      : "";
+  const filaMant = c.planInfo ? fila(`Mantenimiento ${c.planInfo.label.toLowerCase()} — cubre ${c.planInfo.dias} días`, c.planInfo.precio) : "";
 
-const PAGO = [
-  "Forma de pago: USDC sin comisiones (el más rápido), o transferencia bancaria (+10%).",
-];
-
-/** HTML de cotización con marca (para el PDF). */
-export function htmlCotizacion(nombreNegocio: string, _tipo: TipoProyecto = "nube", _productos = 0, plan = "sin", fecha: string): string {
-  const c = cotizar("nube", 0, plan);
-  const fila = (nombre: string, monto: string) =>
-    `<tr><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">${monto}</td></tr>`;
-  const li = (t: string) => `<li style="margin-bottom:5px">${t}</li>`;
-
-  const filas =
-    fila("Configuración de la nube privada cifrada (setup + capacitación)", `$ ${PRECIOS.setup.toFixed(2)}`) +
-    fila("Primer mes de hosting", "INCLUIDO");
-  const filaContinuidad = c.planInfo
-    ? fila(`Continuidad ${c.planInfo.label.toLowerCase()} — cubre ${c.planInfo.dias} días (a partir del mes 2)`, `$ ${c.planInfo.precio.toFixed(2)}`)
-    : "";
+  const mantBloque = c.planInfo
+    ? `<div style="margin-top:16px;padding:14px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#78350f;line-height:1.6">
+        <b>Mantenimiento ${c.planInfo.label.toLowerCase()} · B/. ${c.planInfo.precio.toFixed(2)} — este pago cubre ${c.planInfo.dias} días de mantenimiento.</b>
+        <ul style="margin:8px 0 0;padding-left:18px">
+          <li>Actualización de contenido: precios, fotos, productos y promociones cuando lo necesites.</li>
+          <li>Soporte técnico directo por WhatsApp.</li>
+          <li>Respaldo y seguridad de tu página.</li>
+          <li>Optimización de velocidad para que cargue rápido.</li>
+        </ul>
+      </div>`
+    : tipo !== "mantenimiento"
+      ? `<div style="margin-top:16px;padding:14px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:12px;color:#134e4a;line-height:1.7">
+          <b>Mantenimiento opcional</b> (contenido actualizado, soporte directo, respaldo y optimización):
+          <div style="display:flex;gap:18px;margin-top:8px;flex-wrap:wrap">
+            <span><b style="color:#0d9488">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)}</span>
+            <span><b style="color:#0d9488">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)}</span>
+            <span><b style="color:#0d9488">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)}</span>
+          </div>
+        </div>`
+      : "";
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
     *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
@@ -114,160 +121,209 @@ export function htmlCotizacion(nombreNegocio: string, _tipo: TipoProyecto = "nub
     .total-box{background:#0d9488;color:#fff;border-radius:14px;padding:16px 24px;margin:20px 0;display:flex;justify-content:space-between;align-items:center}
     .total-box .lbl{font-size:11px;color:#ccfbf1;text-transform:uppercase;letter-spacing:.1em}
     .total-box .val{font-size:32px;font-weight:800;letter-spacing:-.02em}
+    .total-box .nota{font-size:11px;color:#ccfbf1;background:transparent;border:none;padding:0;margin:0}
     table{width:100%;border-collapse:collapse;font-size:14px}
     th{text-align:left;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px;border-bottom:1px solid #e2e8f0}
     th.m{text-align:right}
     .nota{margin-top:18px;padding:14px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:12px;color:#134e4a;line-height:1.6}
-    .pago{margin-top:14px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;font-size:12px;color:#1e40af;line-height:1.6}
     .foot{margin-top:24px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
   </style></head><body>
     <div class="brand">
-      <div><div class="t">Cotización · Nube privada cifrada</div><div class="s">David, Chiriquí · ${MATRIZ.nombre}</div></div>
-      <div class="n">${MATRIZ.nombre}<br>${MATRIZ.contacto}</div>
+      <div><div class="t">Cotización</div><div class="s">Desarrollo web · David, Chiriquí</div></div>
+      <div class="n">Ricardo Sanjur<br>WhatsApp 6510-4147</div>
     </div>
     <div class="body">
       <div class="cabeza">
-        <div><div class="neg">${nombreNegocio}</div><div class="tipo">Protección de datos sensibles para tu negocio</div></div>
+        <div><div class="neg">${nombreNegocio}</div><div class="tipo">${c.tipoLabel}</div></div>
         <div class="fecha">${fecha}</div>
       </div>
       <div class="total-box">
-        <div><div class="lbl">Pago único</div></div>
-        <div class="val">$ ${c.total.toFixed(2)}</div>
+        <div><div class="lbl">Total inicial · ${c.planInfo ? `incluye mantenimiento ${c.planInfo.label.toLowerCase()} (${c.planInfo.dias} días)` : "pago único"}</div><div class="nota">${c.tipoLabel}${c.planInfo ? " + mantenimiento" : ""}</div></div>
+        <div class="val">B/. ${c.total.toFixed(2)}</div>
       </div>
       <table><thead><tr><th>Concepto</th><th class="m">Monto</th></tr></thead><tbody>
-        ${filas}${filaContinuidad}
+        ${filas}${filaMant}
       </tbody></table>
-      <div class="nota"><b>Incluye:</b><ul style="margin:8px 0 0;padding-left:18px">${QUE_INCLUYE.map(li).join("")}</ul></div>
-      <div class="nota" style="background:#fffbeb;border-color:#fde68a;color:#78350f"><b>Después del primer mes:</b><ul style="margin:8px 0 0;padding-left:18px">${CONTINUIDAD.map(li).join("")}</ul></div>
-      <div class="pago"><b>Pago:</b> ${PAGO[0]}</div>
-      <div class="foot"><span>Cotización sin compromiso · Válida por 15 días</span><span>${MATRIZ.nombre} · ${MATRIZ.contacto}</span></div>
+      ${mantBloque}
+      <div class="nota"><b>Incluye:</b> dominio propio, alojamiento, diseño a medida y botón directo de WhatsApp. Plazos y detalles se confirman en una llamada breve.</div>
+      <div class="foot"><span>Cotización sin compromiso · Válida por 15 días</span><span>Ricardo Sanjur · WhatsApp 6510-4147</span></div>
     </div>
   </body></html>`;
 }
 
-/** Texto de cotización listo para enviar por WhatsApp (desglose claro). */
+/** Texto de cotización listo para enviar (desglose claro, sin ambigüedades). */
 export function textoCotizacion(
   nombreNegocio: string,
-  _tipo: TipoProyecto = "nube",
-  _productos = 0,
-  plan = "sin"
+  tipo: TipoProyecto,
+  productos: number,
+  plan: string
 ): string {
-  const c = cotizar("nube", 0, plan);
+  const c = cotizar(tipo, productos, plan);
   const lineas: string[] = [
     `Cotización · ${nombreNegocio}`,
-    `Nube privada cifrada · David, Chiriquí`,
     ``,
-    `Pago único: $ ${PRECIOS.setup.toFixed(2)} (incluye configuración, capacitación y primer mes de hosting).`,
-    ``,
-    `Qué incluye:`,
-    ...QUE_INCLUYE.map((t) => `  • ${t}`),
-    ``,
-    `Después del primer mes:`,
-    ...CONTINUIDAD.map((t) => `  • ${t}`),
+    `Proyecto: ${c.tipoLabel}`,
   ];
-  if (c.planInfo) {
-    lineas.push(`Plan elegido: ${c.planInfo.label} — $ ${c.planInfo.precio.toFixed(2)} cubre ${c.planInfo.dias} días de hosting desde el mes 2.`);
+  if (tipo === "catalogo") {
+    lineas.push(`Base del catálogo: B/. ${PRECIOS.catalogoBase.toFixed(2)}`);
+    lineas.push(`Productos (${productos} × B/. ${PRECIOS.porProducto.toFixed(2)}): B/. ${(productos * PRECIOS.porProducto).toFixed(2)}`);
+  } else if (tipo !== "mantenimiento") {
+    lineas.push(`Valor del proyecto: B/. ${c.baseProyecto.toFixed(2)}`);
   }
-  lineas.push(
-    ``,
-    ...PAGO,
-    ``,
-    `Sin contrato, sin permanencia. ¿La dejamos lista esta semana?`,
-  );
+  if (c.planInfo) {
+    lineas.push(`Mantenimiento ${c.planInfo.label.toLowerCase()} — este pago cubre ${c.planInfo.dias} días: B/. ${c.planInfo.precio.toFixed(2)}`);
+  }
+  lineas.push(`————————————`);
+  lineas.push(`TOTAL INICIAL: B/. ${c.total.toFixed(2)}`);
+  if (c.planInfo) {
+    if (tipo === "mantenimiento") {
+      lineas.push(`(${c.planInfo.label} por ${c.planInfo.dias} días: B/. ${c.planInfo.precio.toFixed(2)})`);
+    } else {
+      lineas.push(`(Proyecto B/. ${c.baseProyecto.toFixed(2)} + mantenimiento ${c.planInfo.label.toLowerCase()} por ${c.planInfo.dias} días B/. ${c.planInfo.precio.toFixed(2)})`);
+    }
+    lineas.push(`Renovación del mantenimiento cada ${c.planInfo.dias} días: B/. ${c.planInfo.precio.toFixed(2)}`);
+  }
+  lineas.push(``);
+  if (tipo !== "mantenimiento") {
+    lineas.push(`Incluye: dominio propio, alojamiento, diseño a medida y botón de WhatsApp.`);
+  }
+  if (c.planInfo) {
+    lineas.push(`Mantenimiento incluye: contenido actualizado, soporte directo, respaldo y optimización.`);
+  } else if (tipo !== "mantenimiento") {
+    lineas.push(`Mantenimiento opcional (contenido actualizado, soporte, respaldo y optimización):`);
+    lineas.push(`  › Mensual B/. ${PLANES.mensual.precio.toFixed(2)} · Trimestral B/. ${PLANES.trimestral.precio.toFixed(2)} · Semestral B/. ${PLANES.semestral.precio.toFixed(2)}`);
+  }
+  lineas.push(`Plazos y detalles se confirman en una llamada breve. ¡Saludos!`);
   return lineas.join("\n");
 }
 
 // =====================================================================
-// COTIZACIÓN EN 2 BLOQUES (Setup único + Continuidad flexible)
+// COTIZACIÓN ESCALONADA (Nivel 1 + Nivel 2 / Upsell institucional)
 // =====================================================================
 
 export interface NivelUpsell {
   tipoLabel: string;
-  desde: number;
+  desde: number;      // monto "desde"
   entrega: string;
   extras: string[];
 }
 
 export interface CotizacionEscalonada {
-  nivel1: Cotizacion;   // setup $50 (apertura)
-  nivel2: NivelUpsell;  // continuidad: $10/mes o export gratis
+  nivel1: Cotizacion;                 // landing (apertura)
+  nivel2: NivelUpsell;                // plataforma (upsell)
   totalNivel1: number;
   desdeNivel2: number;
 }
 
-/** Arma los dos bloques: Setup único y Continuidad sin permanencia. */
-export function cotizarEscalonada(_productos = 0, plan = "sin"): CotizacionEscalonada {
-  const nivel1 = cotizar("nube", 0, plan);
+/** Arma los dos niveles: Nivel 1 = landing con plan opcional; Nivel 2 = plataforma. */
+export function cotizarEscalonada(productos = 0, plan = "sin"): CotizacionEscalonada {
+  const nivel1 = cotizar("landing", 0, plan);
   return {
     nivel1,
     nivel2: {
-      tipoLabel: "Continuidad flexible — sin contrato ni permanencia",
-      desde: PRECIOS.mensual,
-      entrega: "Desde el mes 2, tú decides cada mes",
+      tipoLabel: "Plataforma Operativa / Dashboard a la Medida",
+      desde: PRECIOS.plataforma,
+      entrega: "Proyecto institucional · entrega estimada 3-5 semanas según alcance",
       extras: [
-        "Continuar tu espacio por $10/mes con soporte incluido",
-        "Exportar TODOS tus datos gratis y llevártelos cuando quieras",
-        "Subir o bajar usuarios de tu equipo sin recargo",
-        "Copias de seguridad automáticas de tus carpetas cifradas",
-        "Soporte directo por WhatsApp con el mismo técnico que lo montó",
+        "Panel de control para pedidos, citas o tareas del negocio desde el celular",
+        "Reportes y métricas de ventas, inventario o producción en tiempo real",
+        "Usuarios y permisos para tu equipo (según rol)",
+        "Integración con WhatsApp, correo y tus herramientas actuales",
+        "Capacitación del personal y soporte dedicado",
       ],
     },
     totalNivel1: nivel1.total,
-    desdeNivel2: PRECIOS.mensual,
+    desdeNivel2: PRECIOS.plataforma,
   };
 }
 
 const GARANTIA_MATRIZ = [
-  `Este servicio se respalda bajo ${MATRIZ.nombre} (${MATRIZ.rubro}, ${MATRIZ.ubicacion}).`,
-  `Tus datos son tuyos: si algún día te vas, te los llevas completos y gratis. Sin letra pequeña.`,
+  `Este proyecto se ejecuta bajo el paraguas y la garantía de ${MATRIZ.nombre} (${MATRIZ.rubro}, ${MATRIZ.ubicacion}).`,
+  `Al contratar con nosotros, tu inversión queda respaldada por una empresa establecida, con contrato formal, facturación y acompañamiento durante toda la implementación.`,
 ];
 
-/** Texto listo para WhatsApp de la cotización en 2 bloques. */
+/** Texto listo para WhatsApp del cotizador escalonado (los 2 niveles). */
 export function textoCotizacionEscalonada(nombreNegocio: string, plan = "sin"): string {
   const c = cotizarEscalonada(0, plan);
   const n1 = c.nivel1;
   const lineas: string[] = [
-    `Cotización · ${nombreNegocio}`,
-    `${MATRIZ.nombre} · ${MATRIZ.contacto}`,
+    `Cotización en 2 niveles · ${nombreNegocio}`,
+    `${MATRIZ.nombre} · ${MATRIZ.rubro} · ${MATRIZ.ubicacion} · ${MATRIZ.contacto}`,
     ``,
     `──────────────────────────`,
-    `BLOQUE 1 - CONFIGURACIÓN (pago único)`,
-    `Nube privada cifrada · lista en menos de 1 semana`,
-    `$ ${PRECIOS.setup.toFixed(2)}`,
+    `NIVEL 1 - APERTURA`,
+    `Landing Page optimizada · entregable en 24 h`,
+    `B/. ${PRECIOS.landing.toFixed(2)}`,
     ``,
-    ...QUE_INCLUYE.map((e) => `  • ${e}`),
+    `  • Dominio propio, alojamiento, diseño a medida y botón directo de WhatsApp`,
+  ];
+  if (n1.planInfo) {
+    lineas.push(`  • Mantenimiento ${n1.planInfo.label.toLowerCase()} — este pago cubre ${n1.planInfo.dias} días: B/. ${n1.planInfo.precio.toFixed(2)}`);
+  } else {
+    lineas.push(`  • Mantenimiento opcional (Mensual B/. ${PLANES.mensual.precio.toFixed(2)} · Trimestral B/. ${PLANES.trimestral.precio.toFixed(2)} · Semestral B/. ${PLANES.semestral.precio.toFixed(2)})`);
+  }
+  lineas.push(
     ``,
     `──────────────────────────`,
-    `BLOQUE 2 - CONTINUIDAD (desde el mes 2)`,
-    `${c.nivel2.tipoLabel} · desde $ ${PRECIOS.mensual.toFixed(2)}/mes`,
+    `NIVEL 2 - UPSEL INSTITUCIONAL`,
+    `${c.nivel2.tipoLabel} · desde B/. ${PRECIOS.plataforma.toLocaleString("es-PA")}.00`,
+    `(${c.nivel2.entrega})`,
+    ``
+  );
+  for (const e of c.nivel2.extras) lineas.push(`  • ${e}`);
+  lineas.push(
     ``,
-    ...c.nivel2.extras.map((e) => `  • ${e}`),
+    `Si decides avanzar al Nivel 2 dentro de los siguientes 30 días de completado el Nivel 1, el monto pagado en el Nivel 1 (B/. ${PRECIOS.landing.toFixed(2)}) se descuenta del total del Nivel 2.`,
     ``,
-    `FORMA DE PAGO: USDC sin comisiones, o transferencia bancaria (+10%).`,
+    `MANTENIMIENTO OPCIONAL (aplica a cualquiera de los dos niveles)`,
+    `Contenido actualizado, soporte directo, respaldo y optimización:`,
+    `• Mensual B/. ${PLANES.mensual.precio.toFixed(2)} | Trimestral B/. ${PLANES.trimestral.precio.toFixed(2)} | Semestral B/. ${PLANES.semestral.precio.toFixed(2)}`,
+  );
+  if (n1.planInfo) {
+    lineas.push(`Plan elegido: ${n1.planInfo.label} — este pago cubre ${n1.planInfo.dias} días: B/. ${n1.planInfo.precio.toFixed(2)}`);
+  }
+  lineas.push(
     ``,
-    `RESPALDO`,
+    `FORMA DE PAGO: 50% de anticipo para iniciar el proyecto, 50% contra entrega.`,
+    ``,
+    `RESPALDO INSTITUCIONAL`,
     ...GARANTIA_MATRIZ,
     ``,
     `Cotización sin compromiso · Válida por 15 días`,
     `${MATRIZ.nombre} · ${MATRIZ.contacto}`,
-  ];
-  if (n1.planInfo) {
-    lineas.splice(
-      lineas.findIndex((l) => l.startsWith("FORMA DE PAGO")),
-      0,
-      `Plan elegido: ${n1.planInfo.label} — $ ${n1.planInfo.precio.toFixed(2)} cubre ${n1.planInfo.dias} días de hosting desde el mes 2.`,
-      ``
-    );
-  }
+  );
   return lineas.join("\n");
 }
 
-/** HTML para PDF del cotizador en 2 bloques (marca + setup + continuidad). */
+/** HTML para PDF del cotizador escalonado (marca + 2 niveles + garantía de la matriz). */
 export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fecha: string): string {
   const c = cotizarEscalonada(0, plan);
   const n1 = c.nivel1;
+  const fila = (nombre: string, monto: string) =>
+    `<tr><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">${monto}</td></tr>`;
 
-  const extrasN2 = c.nivel2.extras.map((e) => `<li>${e}</li>`).join("");
+  const filasN1 = fila("Landing Page optimizada (entregable en 24 h)", `B/. ${PRECIOS.landing.toFixed(2)}`) +
+    (n1.planInfo
+      ? fila(`Mantenimiento ${n1.planInfo.label.toLowerCase()} — este pago cubre ${n1.planInfo.dias} días`, `B/. ${n1.planInfo.precio.toFixed(2)}`)
+      : "");
+
+  const extrasN2 = c.nivel2.extras
+    .map((e) => `<li>${e}</li>`)
+    .join("");
+
+  const mantBloque = n1.planInfo
+    ? `<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#78350f;line-height:1.6">
+        <b>Mantenimiento ${n1.planInfo.label.toLowerCase()} · B/. ${n1.planInfo.precio.toFixed(2)} — este pago cubre ${n1.planInfo.dias} días.</b><br>
+        Incluye: contenido actualizado (precios, fotos, productos), soporte directo, respaldo y optimización.
+      </div>`
+    : `<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#78350f;line-height:1.7">
+        <b>Mantenimiento opcional</b> (aplica a cualquiera de los dos niveles) · contenido actualizado, soporte directo, respaldo y optimización:
+        <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
+          <span><b style="color:#b45309">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)} (30 días)</span>
+          <span><b style="color:#b45309">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)} (90 días)</span>
+          <span><b style="color:#b45309">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)} (180 días)</span>
+        </div>
+      </div>`;
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
     *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
@@ -286,15 +342,17 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
     .nivel .sub{font-size:12px;color:#475569;margin:2px 0 10px}
     .n1{background:#fef3c7;border:1px solid #fde68a}
     .n2{background:#f0fdf4;border:1px solid #bbf7d0}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
     .extras{margin:10px 0 0;padding-left:20px;font-size:13px;color:#334155;line-height:1.7}
     .extras li{margin-bottom:4px}
+    .credito{margin-top:12px;padding:12px 16px;background:#fefce8;border:1px solid #fef08a;border-radius:10px;font-size:12px;color:#713f12;line-height:1.6}
     .pago{margin-top:14px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;font-size:12px;color:#1e40af;line-height:1.6}
     .garantia{margin-top:14px;padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;font-size:12px;color:#334155;line-height:1.7}
     .garantia b{color:#0d9488}
     .foot{margin-top:22px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
   </style></head><body>
     <div class="brand">
-      <div><div class="t">Cotización · Nube privada cifrada</div><div class="s">${MATRIZ.nombre} · ${MATRIZ.rubro}</div></div>
+      <div><div class="t">Cotización en 2 niveles</div><div class="s">${MATRIZ.nombre} · ${MATRIZ.rubro}</div></div>
       <div class="n">${MATRIZ.nombre}<br>${MATRIZ.ubicacion}<br>${MATRIZ.contacto}</div>
     </div>
     <div class="body">
@@ -304,24 +362,26 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
       </div>
 
       <div class="nivel n1">
-        <h2>Bloque 1 · Configuración (pago único)</h2>
-        <div class="precio">$ ${c.totalNivel1.toFixed(2)}</div>
-        <div class="sub">Nube privada cifrada · lista en menos de 1 semana</div>
-        <ul class="extras">${QUE_INCLUYE.map((e) => `<li>${e}</li>`).join("")}</ul>
+        <h2>Nivel 1 · Apertura</h2>
+        <div class="precio">B/. ${c.totalNivel1.toFixed(2)}</div>
+        <div class="sub">Landing Page optimizada · entregable en 24 h</div>
+        <table><tbody>${filasN1}</tbody></table>
       </div>
 
       <div class="nivel n2">
-        <h2>Bloque 2 · Continuidad (desde el mes 2)</h2>
-        <div class="precio">Desde $ ${c.desdeNivel2.toFixed(2)}/mes</div>
+        <h2>Nivel 2 · Upsell institucional</h2>
+        <div class="precio">Desde B/. ${PRECIOS.plataforma.toLocaleString("es-PA")}.00</div>
         <div class="sub">${c.nivel2.tipoLabel} · ${c.nivel2.entrega}</div>
         <ul class="extras">${extrasN2}</ul>
       </div>
 
-      ${n1.planInfo ? `<div class="pago" style="background:#fffbeb;border-color:#fde68a;color:#78350f"><b>Plan elegido:</b> ${n1.planInfo.label} — $ ${n1.planInfo.precio.toFixed(2)} cubre ${n1.planInfo.dias} días de hosting desde el mes 2.</div>` : ""}
+      <div class="credito">Si decides avanzar al Nivel 2 dentro de los siguientes <b>30 días</b> de completado el Nivel 1, el monto pagado en el Nivel 1 (<b>B/. ${PRECIOS.landing.toFixed(2)}</b>) se descuenta del total del Nivel 2.</div>
 
-      <div class="pago"><b>Forma de pago:</b> ${PAGO[0]}</div>
+      ${mantBloque}
 
-      <div class="garantia"><b>Respaldo</b><br>${GARANTIA_MATRIZ[0]}<br>${GARANTIA_MATRIZ[1]}</div>
+      <div class="pago"><b>Forma de pago:</b> 50% de anticipo para iniciar el proyecto, 50% contra entrega.</div>
+
+      <div class="garantia"><b>Respaldo institucional</b><br>${GARANTIA_MATRIZ[0]}<br>${GARANTIA_MATRIZ[1]}</div>
 
       <div class="foot">
         <span>Cotización sin compromiso · Válida por 15 días</span>

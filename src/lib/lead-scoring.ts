@@ -1,20 +1,18 @@
 /**
- * LEAD SCORING — NUBE PRIVADA CIFRADA ($50 USDC, pago único)
- * ----------------------------------------------------------
- * Prioriza negocios que MANEJAN DATOS SENSIBLES: abogados, contadores,
- * clínicas/consultorios, consultores y pequeños negocios con información
- * confidencial. La calidad de su web es IRRELEVANTE para este producto.
- * Modelo 0-100.
+ * LEAD SCORING — prioriza negocios tradicionales con buena reputación
+ * pero SIN presencia web (o con web deficiente). Modelo 0-100.
  *
  * DOS MODOS:
- *   filter (DEFAULT) → entran solo giros sensibles que superan el umbral.
- *   rank             → no descarta a nadie (volumen), el score solo ordena.
+ *   rank (DEFAULT)  → el score SOLO ORDENA (mejores primero). No se descarta
+ *                     a nadie: todos los que tengan teléfono válido y no tengan
+ *                     web buena entran, para mantener VOLUMEN de trabajo.
+ *   filter          → modo estricto: solo entran los que pasan los umbrales.
  *
  * Config (.env):
- *   SCORE_MODO        = "filter" | "rank"   (default: filter)
+ *   SCORE_MODO        = "rank" | "filter"   (default: rank)
  *   SCORE_RATING_MIN  = rating de referencia (4.0)
- *   SCORE_RESENAS_MIN = reseñas de referencia (10)
- *   SCORE_MINIMO      = puntaje mínimo para entrar (45)
+ *   SCORE_RESENAS_MIN = reseñas de referencia (15)
+ *   SCORE_MINIMO      = puntaje que separa tier "media" de "baja" (45)
  */
 import "dotenv/config";
 
@@ -32,84 +30,62 @@ export interface DatosReputacion {
   reseñas: number;
   tiene_web: boolean;
   web_deficiente: boolean;
-  /** True si el giro maneja datos sensibles (nicho objetivo del nuevo objetivo). */
-  giro_sensible: boolean;
+  giro_tradicional: boolean;
 }
 
-/** Giros OBJETIVO: manejan información confidencial de clientes. */
-export const GIROS_SENSIBLES = [
-  "abogad", "legal", "juridic", "notar", "herencia", "legaliz",
-  "contad", "contabl", "auditor", "fiscal", "tribut", "impuesto", "despacho",
-  "clinica", "consultori", "medic", "salud", "psicolog", "paciente", "historial",
-  "dental", "optometr", "laboratori", "medico",
-  "seguros", "inmobiliar", "consultor", "arquitect", "ingenier", "topograf", "actuar",
+/** GiroS objetivo: negocios tradicionales/operativos (volumen de $300 + upsell B2B). */
+export const GIROS_TRADICIONALES = [
+  "agro", "agricol", "agropecu", "agroind", "ganader", "riego", "semilla", "insumos",
+  "logistic", "transporte", "encomienda", "aduanas", "carga", "flete", "mudanza",
+  "construccion", "construct", "ingenieria", "concreto", "asfalto", "maquinaria",
+  "ferreteria", "servicios", "electric", "plomeria", "topografia", "seguridad",
 ];
 
-/** EXCLUIDOS por política: retail, gastronomía, tiendas, marketing. */
-export const GIROS_EXCLUIDOS = [
-  "restaurant", "comida", "cafeter", "panader", "bar ", "pub", "discotec",
-  "tienda", "supermercado", "abarrotes", "minimarket", "boutique", "ropa", "zapater",
-  "marketing", "publicidad", "agencia de publicidad", "redes sociales",
-  "salon de belleza", "barberia", "gimnasio", "mascota", "veterinari",
-  "repuestos", "llantas", "taller", "ferreteria", "construccion", "materiales",
-];
-
-function normaliza(tipo: string): string {
-  return (tipo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+export function esGiroTradicional(tipo: string): boolean {
+  const t = (tipo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return GIROS_TRADICIONALES.some((g) => t.includes(g));
 }
-
-export function esGiroSensible(tipo: string): boolean {
-  const t = normaliza(tipo);
-  return GIROS_SENSIBLES.some((g) => t.includes(g));
-}
-
-export function esGiroExcluido(tipo: string): boolean {
-  const t = normaliza(tipo);
-  return GIROS_EXCLUIDOS.some((g) => t.includes(g));
-}
-
-/** Alias de compatibilidad (scraper legado googlemaps.ts). */
-export const esGiroTradicional = esGiroSensible;
 
 const RATING_MIN = Number(process.env.SCORE_RATING_MIN || 4.0);
-const RESENAS_MIN = Number(process.env.SCORE_RESENAS_MIN || 10);
+const RESENAS_MIN = Number(process.env.SCORE_RESENAS_MIN || 15);
 const SCORE_MINIMO = Number(process.env.SCORE_MINIMO || 45);
-const SCORE_MODO = (process.env.SCORE_MODO || "filter").toLowerCase();
+const SCORE_MODO = (process.env.SCORE_MODO || "rank").toLowerCase();
 
 export const SCORE_UMBRALES = { RATING_MIN, RESENAS_MIN, SCORE_MINIMO, SCORE_MODO };
 
 /**
- * Calcula el puntaje. Reglas del nuevo objetivo:
- *  - Giro EXCLUIDO (retail/gastro/marketing) → 0 pts, fuera.
- *  - Giro sensible (+50) | giro neutro (+0, solo entra en modo rank).
- *  - Rating (proxy de cartera activa): >=4.5 (+20) | >=4.0 (+12) | >=3.5 (+6).
- *  - Reseñas (proxy de cantidad de clientes = cantidad de datos):
- *    >=200 (+15) | >=100 (+12) | >=10 (+10) | >=1 (+5).
- *  - Web propia (+5): negocio establecido = puede pagar. La web YA NO filtra.
+ * Calcula el puntaje. Regla de negocio:
+ *  - Con web propia EN BUEN estado  → NO es lead (0 pts).
+ *  - Sin web propia (+45) | web deficiente (+25).
+ *  - Rating: >=4.5 (+25) | >=4.0 (+15) | >=3.5 (+8) | resto (+0).
+ *  - Reseñas: >=200 (+15) | >=100 (+12) | >=15 (+10) | >=1 (+5) | 0 (+0).
+ *  - Giro tradicional (+15).
+ * En modo "rank" NADIE se descarta por reputación (solo se ordena); en modo
+ * "filter" solo pasan los que cumplen los umbrales.
  */
-export function calcularScore(d: DatosReputacion, giroTexto = ""): ScoringResult {
-  if (esGiroExcluido(giroTexto)) {
-    return { score: 0, tier: "baja", pasa_filtro: false, motivo: "Excluido: retail/gastro/marketing (no maneja datos sensibles)" };
+export function calcularScore(d: DatosReputacion): ScoringResult {
+  if (d.tiene_web && !d.web_deficiente) {
+    return { score: 0, tier: "baja", pasa_filtro: false, motivo: "Ya tiene web propia en buen estado" };
   }
 
   const motivos: string[] = [];
   let score = 0;
-
-  if (d.giro_sensible) {
-    score += 50;
-    motivos.push("Maneja datos sensibles");
+  if (!d.tiene_web) {
+    score += 45;
+    motivos.push("Sin web propia");
   } else {
-    motivos.push("Giro sin datos sensibles");
+    score += 25;
+    motivos.push("Web deficiente");
   }
 
   if (d.rating >= 4.5) {
-    score += 20;
+    score += 25;
     motivos.push(`Rating ${d.rating.toFixed(1)}★`);
   } else if (d.rating >= RATING_MIN) {
-    score += 12;
+    score += 15;
     motivos.push(`Rating ${d.rating.toFixed(1)}★`);
   } else if (d.rating >= 3.5) {
-    score += 6;
+    score += 8;
     motivos.push(`Rating ${d.rating.toFixed(1)}★`);
   } else {
     motivos.push(`Rating ${d.rating ? d.rating.toFixed(1) : "s/d"}★`);
@@ -117,30 +93,30 @@ export function calcularScore(d: DatosReputacion, giroTexto = ""): ScoringResult
 
   if (d.reseñas >= 200) {
     score += 15;
-    motivos.push(`${d.reseñas} clientes reseñan`);
+    motivos.push(`${d.reseñas} reseñas`);
   } else if (d.reseñas >= 100) {
     score += 12;
-    motivos.push(`${d.reseñas} clientes reseñan`);
+    motivos.push(`${d.reseñas} reseñas`);
   } else if (d.reseñas >= RESENAS_MIN) {
     score += 10;
-    motivos.push(`${d.reseñas} clientes reseñan`);
+    motivos.push(`${d.reseñas} reseñas`);
   } else if (d.reseñas >= 1) {
     score += 5;
-    motivos.push(`${d.reseñas} clientes reseñan`);
+    motivos.push(`${d.reseñas} reseñas`);
+  } else {
+    motivos.push(`${d.reseñas ?? 0} reseñas`);
   }
 
-  if (d.tiene_web) {
-    score += 5;
-    motivos.push("Negocio establecido");
+  if (d.giro_tradicional) {
+    score += 15;
+    motivos.push("Giro tradicional");
   }
 
-  const tier: TierLead = score >= 80 ? "top" : score >= 65 ? "alta" : score >= SCORE_MINIMO ? "media" : "baja";
-  // OJO: no exigimos rating mínimo — muchos abogados/contadores serios tienen
-  // pocas reseñas. El giro sensible + el umbral de score ya filtran bastante.
+  const tier: TierLead = score >= 85 ? "top" : score >= 65 ? "alta" : score >= SCORE_MINIMO ? "media" : "baja";
   const pasa_filtro =
-    SCORE_MODO === "rank"
-      ? !esGiroExcluido(giroTexto)
-      : d.giro_sensible && score >= SCORE_MINIMO;
+    SCORE_MODO !== "filter"
+      ? true
+      : score >= SCORE_MINIMO && d.rating >= RATING_MIN && d.reseñas >= RESENAS_MIN;
   return { score, tier, pasa_filtro, motivo: motivos.join(" · ") };
 }
 

@@ -1,36 +1,32 @@
 # Prospector David 🎯
 
-Pipeline end-to-end de prospección local: **scraper Places → copys de WhatsApp** (envío 100% manual para proteger tu cuenta).
+Pipeline end-to-end de prospección local para negocios de **David, Chiriquí**:
+**scraper → landings Astro → capturas → copys de WhatsApp** (envío 100% manual para proteger tu cuenta).
 
-> **Objetivo (reestructurado):** vender **configuración de nube privada cifrada por $50**
-> (pago único = setup + capacitación + primer mes de hosting; después $10/mes o export de
-> datos gratis). El público es quien maneja **información confidencial**: abogados y
-> estudios jurídicos, contadores, clínicas y consultorios (médicos/psicológicos),
-> consultores y pequeños negocios con datos sensibles. **NO se venden landing pages ni
-> servicios de marketing** (el pipeline de landings/capturas queda legacy, intacto pero fuera del flujo).
+> **Filosofía:** la landing automática es un *gancho de venta*, no el producto final.
+> Su trabajo es que el cliente diga "sí" al paquete de **Nivel 1** ($300, landing en 24 h).
+> Una vez dentro, el **Nivel 2** (Plataforma Operativa / Dashboard, desde $1,200) es el
+> upsell institucional que se vende bajo la garantía de la empresa matriz.
 
-### Reglas del nuevo objetivo (implementadas en el código)
-1. **Filtros de búsqueda** (`src/scraper/places.ts`): solo giros sensibles — abogados,
-   notarías, contadores, auditoría, clínicas, consultorios médicos/psicológicos,
-   laboratorios, seguros, inmobiliarias, consultoras, colegios. **Excluidos**: retail,
-   restaurantes, tiendas online y agencias de marketing (`GIROS_EXCLUIDOS`).
-2. **Lead Scoring** (`src/lib/lead-scoring.ts`): puntúa por giro sensible (+50),
-   reputación y tamaño de cartera. **La web propia es irrelevante** — un abogado con
-   web perfecta también paga $50 por soberanía de datos. Default `SCORE_MODO=filter`.
-3. **Mensaje 1 — apertura**: describe sus datos sensibles por giro (`temaPorTipo`),
-   ofrece la nube privada cifrada y **JAMÁS menciona crypto/USDC/blockchain**
-   (regla 5; `esMensajeAperturaSeguro` lo bloquea automáticamente). Sin enlaces, sin
-   emojis, sin imágenes. **Tope diario: 20-30 contactos** (`WA_MAX_SESION=25`).
-4. **Mensaje 2 — detalles** (solo tras respuesta): los 4 puntos del servicio, la
-   comparación con Google Drive y las formas de pago — USDC sin comisiones o
-   transferencia (+10%). Aquí sí se puede decir USDC.
-5. **Manejo de objeciones** en `mensajeCierre` / `generarRespuesta`: "Drive es compartido
-   y escanea tus datos", "los $50 son pago único por soberanía real", "tu tiempo vale más
-   que 40 horas de prueba y error".
-6. **Seguimiento ÚNICO a las 48h** (regla 4): un solo mensaje amable entre el día 2 y el
-   7; pasado ese margen se descarta — nada de re-envíos eternos.
-7. **Cotizador** (`src/lib/precios.ts`): oferta única $50 + continuidad $10/mes o export
-   gratis, en texto y PDF bajo el respaldo de la empresa matriz.
+### Las 4 mejoras estratégicas
+1. **Lead Scoring**: el motor de Places API puntúa y prioriza negocios tradicionales
+   (agro, logística, construcción, servicios) con buena reputación (+4.0★, +50 reseñas)
+   que NO tienen web (o la tienen deficiente). Cada prospecto guarda `lead_score`,
+   `tier_lead` y `scoring_motivo` y entra ordenado de mejor a peor.
+2. **Anti-ban WhatsApp**: el primer mensaje es una *apertura* corta **sin enlaces, PDFs
+   ni imágenes** (lo valida `esMensajeAperturaSeguro`). El material pesado va en el
+   mensaje 2, solo tras la respuesta del dueño. Delays dinámicos con jitter, pausas
+   cada N envíos y factor nocturno (ver `WA_*` en `.env`). **En David no se mandan
+   enlaces ni emojis** (`ENVIAR_ENLACES=false`): la muestra se entrega como imágenes
+   adjuntas. Quien no respondió entra en **Seguimientos** con un mensaje de retoma
+   adaptado a los días transcurridos (se re-envía aun tras un mes).
+3. **Cotizador escalonado** ("Caballo de Troya"): Nivel 1 = Landing en 24 h por $300 ·
+   Nivel 2 = Plataforma Operativa / Dashboard desde $1,200 bajo el paraguas de
+   **Topografía Especializada S.A.** Texto y PDF en 2 niveles (GUI → Cotizador escalonado).
+4. **Pipeline de prototipado optimizado**: una sola instancia de Chromium para todo el
+   lote, espera por fuentes (no sleeps fijos), capturas **JPEG livianas por defecto**
+   (las 6 imágenes ≈ 1MB, cargan al instante en WhatsApp), salta lo ya capturado
+   (`SS_SALTAR`) y el build de landings es incremental (`build-landings.ts`).
 
 ---
 
@@ -77,12 +73,12 @@ bun run seed          # (opcional) fusiona los 8 clientes reales (no borra nada)
 bun run scrape        # MÓDULO 1a: directorio CAMCHI (API WordPress) — teléfonos +507, dedup, sin-web
 bun run gmaps         # MÓDULO 1b: Google Maps de David — teléfonos + web + COORDENADAS + rating (best-effort)
                       #   (config: GMAP_QUERIES="restaurantes en David, salones en David" · GMAP_LIMITE=15)
-bun run places        # MÓDULO 1c: Google Places API con LEAD SCORING — nichos de datos sensibles
-                      #   (config: PLACES_QUERIES · PLACES_LIMITE · SCORE_MODO=filter · SCORE_MINIMO)
-bun run build:landings # (LEGACY) landings de muestra del embudo viejo — ya no se usan
-bun run capturar      # (LEGACY) capturas de landings — ya no se usan
-bun run envio         # MÓDULO 4: secuencia anti-ban (apertura sin enlaces + detalles) + lista + reporte HTML
-bun run pipeline      # = build + capturar + envio (respeta el lote activo; módulos legacy no afectan el flujo)
+bun run places        # MÓDULO 1c: Google Places API con LEAD SCORING — prioriza sin-web + reputación
+                      #   (config: PLACES_QUERIES · PLACES_LIMITE · SCORE_RATING_MIN/RESENAS_MIN/MINIMO)
+bun run build:landings # MÓDULO 2: genera las landings del lote activo (incremental, salta lo fresco)
+bun run capturar      # MÓDULO 3: capturas móvil + PC por sección (1 navegador, salta lo capturado)
+bun run envio         # MÓDULO 4: secuencia anti-ban (apertura sin enlaces + muestra) + lista + reporte HTML
+bun run pipeline      # = build + capturar + envio (respeta el lote activo)
 ```
 
 ### Control diario (10 al día, sin repetir)
@@ -95,13 +91,13 @@ bun run pipeline      # = build + capturar + envio (respeta el lote activo; mód
 ```bash
 xdg-open output/reporte_envio.html
 ```
-Cada tarjeta muestra la **secuencia anti-ban** (mensaje 1 = apertura sin enlaces ni crypto;
-mensaje 2 = detalles con precio y formas de pago) con los delays recomendados entre envíos. **Abre, revisa y envía tú mismo. Nada se
+Cada tarjeta muestra la **secuencia anti-ban** (mensaje 1 = apertura sin enlaces; mensaje 2 =
+muestra) con los delays recomendados entre envíos. **Abre, revisa y envía tú mismo. Nada se
 envía solo.**
 
 - **En David no se mandan enlaces** (`ENVIAR_ENLACES=false`): la gente teme las estafas. El
   mensaje 1 es una apertura corta sin nada; si el dueño responde, envías el **mensaje 2**
-  con los detalles — todo el valor cabe en texto (no hace adjuntar imágenes).
+  adjuntando las **imágenes** del prototipo (las capturas aparecen en la tarjeta).
 - Respeta el ritmo: `WA_DELAY_BASE` + `WA_DELAY_JITTER` (ms) entre envíos, pausa larga cada
   `WA_PAUSA_CADA` envíos, factor nocturno x2.5 de 22h a 7h.
 - `output/lista_envio.json` = versión estructurada para herramientas (incluye `mensajes[]`,
@@ -111,15 +107,16 @@ envía solo.**
 
 La mayoría no responde ni lee el primer mensaje. La pestaña **Seguimientos** de la GUI
 agrupa a los contactados que no cerraron y genera un **mensaje de retoma** adaptado a los
-regla operativa 4 — UN solo seguimiento:
+días transcurridos desde el último contacto:
 
-- **< 48 h** → aún no entra a la lista (espera).
-- **2-7 días** → retoma única y amable (con salida elegante si no aplica).
-- **> 7 días sin respuesta** → se descarta; no hay segundo intento.
+- **1-7 días** → nudge corto (¿lo vieron?).
+- **8-30 días** → retoma (el primer mensaje se pierde, reenvío con imágenes).
+- **>30 días** → retoma en frío (re-apertura como si fuera nuevo, con las vistas).
 
-Cada tarjeta de seguimiento muestra los días, el mensaje listo (`wa.me`) y las acciones
-(Interesado / Reagendar / No). Los datos viven en `output/seguimientos.json` y en el estado
-`seguimiento` de cada prospecto (el reloj parte de `ultimo_contacto`).
+Cada tarjeta de seguimiento muestra los días, el mensaje listo (`wa.me`), sus capturas y
+acciones (Interesado / Reagendar / No). Así puedes re-enviar la muestra a un cliente que
+no respondió, aunque haya pasado un mes. Los datos viven en `output/seguimientos.json` y en
+el estado `seguimiento` de cada prospecto (el reloj parte de `ultimo_contacto`).
 
 ### Flujo completo de envío (día a día)
 
@@ -127,11 +124,10 @@ Cada tarjeta de seguimiento muestra los días, el mensaje listo (`wa.me`) y las 
 2. Envía el **mensaje 1** (apertura, sin enlaces) a todos, abriendo cada `wa.me`.
    Luego pulsa **"✓ Marcar todos como Enviado"** (o marca uno por uno).
 3. Cada tarjeta de la pestaña **Seguimientos** tiene un selector:
-   - **Retoma (no respondió)** → el ÚNICO seguimiento a las 48h.
-   - **Mensaje 2 · Detalles (respondió)** → cuando el cliente te responde, envía los 4
-     puntos con precio, continuidad y formas de pago.
-4. El que responde → lo pasas a **Interesado** → cierras con la cotización ($50 pago único;
-   si duda, usa el mensaje de objeciones). Meta: 100 contactos/sem → 5-10 respuestas → 2-3 ventas.
+   - **Retoma (no respondió)** → mensaje adaptado a los días + imágenes.
+   - **Mensaje 2 · Muestra (respondió)** → cuando el cliente te responde, usa esta opción
+     para enviarle la muestra con las 6 imágenes.
+4. El que responde → lo pasas a **Interesado** → cierras con el cotizador escalonado.
 
 ## 5. Reglas del scraper (camchi y Places)
 
@@ -159,14 +155,15 @@ Cada tarjeta de seguimiento muestra los días, el mensaje listo (`wa.me`) y las 
 
 ## 7. Consejo de negocio
 
-El flujo que convierte: scrapea (Places con scoring de giros sensibles) → revisa el reporte
-→ envía manualmente respetando el tope de 20-30 contactos/día (mensaje 1 = apertura sin
-enlaces ni crypto; mensaje 2 = detalles tras la respuesta; UN retoma a las 48h) → cierras
-la **nube privada cifrada por $50** (pago único con primer mes incluido) → cobras en USDC
-sin comisiones o por transferencia (+10%).
+El flujo que convierte: scrapea (Places con scoring) → revisa el reporte → envía manualmente
+siguiendo el ritmo anti-ban (mensaje 1 = apertura sin enlaces, mensaje 2 = muestra tras la
+respuesta) → muestra la maqueta → cierra el **Nivel 1** ($300, landing en 24 h) → ahí sí
+construyes la landing personalizada (con su color, fotos reales y mapa con pin).
 
-Meta semanal: 100 negocios contactados → 5-10 respuestas → 2-3 ventas = **$100-150 USDC
-netos**, más el recurring de $10/mes de quienes decidan quedarse.
+Una vez que el negocio confía en ti, abre el **Nivel 2**: la *Plataforma Operativa /
+Dashboard a la medida* (desde $1,200), cotizada bajo la garantía de la empresa matriz
+(Topografía Especializada S.A.). El caballo de Troya: la landing de $300 abre la puerta;
+el dashboard institucional paga el margen.
 
 ## 8. Despliegue en GitHub
 
