@@ -235,22 +235,91 @@ export async function generarSeguimiento(p: Prospecto): Promise<string> {
   return llmTxt || seguimientoPlantilla(p);
 }
 
-/** Respuesta sugerida al mensaje entrante de un cliente (asistente de respuestas). */
-export async function generarRespuesta(p: Prospecto, mensajeCliente: string): Promise<string> {
-  const yaTieneSitio = p.tiene_web === true;
-  const sist =
-    "Eres un asesor de ventas para un desarrollador web local de David, Chiriquí. El negocio se llama EXACTAMENTE \"" + p.nombre_negocio + "\" y su rubro es \"" + p.tipo + "\" — jamás lo llames de otra forma ni cambies su rubro." +
-    (yaTieneSitio
-      ? " IMPORTANTE: este negocio YA tiene su página web (es cliente actual). NO ofrezcas la landing de $300, NO menciones la muestra gratis ni el paquete base: enfócate SOLO en el upgrade que pide (catálogo en línea, pedidos por WhatsApp, reservas, etc.) y preséntalo como un proyecto aparte que se cotiza según el alcance."
-      : " Este negocio es un prospecto nuevo que ya recibió una MUESTRA GRATIS de su futura web; si pide más que una presentación, recuérdale que la landing de $300 es la base y que el catálogo/pedidos se cotiza aparte.") +
-    " Escribe una RESPUESTA corta (máx 140 palabras), cálida y persuasiva, en español, sin placeholders ni corchetes y sin emojis. Debe: 1) agradecer y reconocer el mensaje; 2) confirmar que SÍ pueden hacer más que una página de presentación y proponer el SITIO DE CATÁLOGO con pedidos que llegan por WhatsApp (sin pasarela de pago ni comisiones, pedidos 24/7), como un proyecto COTIZADO APARTE según la cantidad de productos; 3) pedir cuántos productos/servicios manejan para dar el presupuesto; 4) proponer una llamada corta para afinar la cotización.";
-  const prompt = `Negocio: ${p.nombre_negocio} (${p.tipo}). Mensaje entrante del cliente: "${mensajeCliente}". Escribe la respuesta.`;
-  const llmTxt = await llm(sist, prompt);
-  return llmTxt || [
-    `¡Gracias por escribirnos! Claro, con gusto.`,
-    ``,
-    `En resumen: ya vieron la muestra gratis. El sitio completo incluye dominio propio, diseño a medida, botón de WhatsApp directo y 5 rondas de ajustes, por una inversión única de $300 (con plan de mantenimiento opcional para mantenerlo siempre al día).`,
-    ``,
-    `¿Qué les parece si agendamos una llamada corta para mostrarles la muestra con más detalle? Quedo atento. ¡Saludos!`,
+/** Traducción de la intención del cliente + respuesta lista (asistente de respuestas v2). */
+export interface InterpretacionRespuesta {
+  intencion: "interesado" | "precio" | "tiempo" | "permiso" | "detalle" | "no_interesado" | "otro";
+  quiereDecir: string;
+  respuesta: string;
+}
+
+const INTENCIONES_VALIDAS = new Set([
+  "interesado", "precio", "tiempo", "permiso", "detalle", "no_interesado", "otro",
+]);
+
+/** Extrae el primer objeto JSON de un texto (el LLM a veces lo envuelve en ``` o agrega prosa). */
+function extraerJson(texto: string): Record<string, unknown> | null {
+  if (!texto) return null;
+  const inicio = texto.indexOf("{");
+  const fin = texto.lastIndexOf("}");
+  if (inicio === -1 || fin <= inicio) return null;
+  try {
+    return JSON.parse(texto.slice(inicio, fin + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** Respuesta de respaldo cuando la IA no está disponible o no devuelve JSON válido. */
+function respuestaPlantilla(p: Prospecto): string {
+  return [
+    "¡Gracias por escribirnos! Claro, con gusto los ayudo.",
+    "",
+    "Lo que vieron es solo la muestra: el sitio completo incluye dominio propio, diseño a medida, botón de WhatsApp directo y ajustes, por una inversión única de $300. Si necesitan catálogo con pedidos, se cotiza aparte según la cantidad de productos.",
+    "",
+    "¿Les paso los detalles o preferís una llamada corta? Sin compromiso.",
   ].join("\n");
+}
+
+/**
+ * Asistente de respuestas (v2): además de la respuesta sugerida, TRADUCE lo que el
+ * cliente quiso decir. Devuelve intención clasificada + explicación literal + texto listo.
+ */
+export async function interpretarRespuesta(p: Prospecto, mensajeCliente: string): Promise<InterpretacionRespuesta> {
+  const yaTieneSitio = p.tiene_web === true;
+  const reglasSitio = yaTieneSitio
+    ? "IMPORTANTE: este negocio YA tiene su página web (es cliente actual). NO ofrezcas la landing de $300 ni la muestra gratis: enfócate SOLO en el upgrade que pide (catálogo, pedidos por WhatsApp, reservas, panel) y preséntalo como proyecto aparte que se cotiza según el alcance."
+    : "Este negocio es un prospecto nuevo que ya recibió una MUESTRA GRATIS de su futura web: si pide más que una presentación, recordá que la landing de $300 es la base y que el catálogo/pedidos se cotiza aparte.";
+  const sist =
+    "Eres un asesor de ventas y TRADUCTOR de mensajes para un desarrollador web local de David, Chiriquí.\n" +
+    'El negocio se llama EXACTAMENTE "' + p.nombre_negocio + '" y su rubro es "' + p.tipo + '" — jamás lo llames de otra forma ni cambies su rubro.\n' +
+    reglasSitio + "\n" +
+    "Devuelve SOLO un objeto JSON válido (sin texto extra, sin bloques de código) con esta forma exacta:\n" +
+    '{"intencion":"interesado|precio|tiempo|permiso|detalle|no_interesado|otro","quiere_decir":"...","respuesta":"..."}\n' +
+    "- intencion: lo que el cliente REALMENTE quiere (tiempo = 'déjame pensarlo / después'; permiso = debe consultar con socio o familia; precio = pregunta cuánto o le parece caro; detalle = pide más información; no_interesado = rechazo claro).\n" +
+    "- quiere_decir: 1 o 2 frases LITERALES, sin adornos, explicando qué está pidiendo o sintiendo el cliente.\n" +
+    "- respuesta: máximo 120 palabras, español de Panamá, lista para copiar y pegar, sin placeholders ni corchetes, sin emojis, y ADAPTADA a la intención real (no el mismo guion para todos).";
+  const prompt = 'Mensaje entrante del cliente: "' + mensajeCliente + '".\nClasifica la intención, explícala y escribe la respuesta.';
+
+  const key = process.env.DEEPSEEK_API_KEY;
+  if (!key) {
+    return { intencion: "otro", quiereDecir: "(IA no configurada: falta DEEPSEEK_API_KEY)", respuesta: respuestaPlantilla(p) };
+  }
+  try {
+    const res = await chatCompletions(key, {
+      model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+      messages: [
+        { role: "system", content: sist },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.5,
+      max_tokens: 500,
+    });
+    if (!res.ok) throw new Error("llm no ok");
+    const data = await res.json();
+    const raw: string = data?.choices?.[0]?.message?.content?.trim() || "";
+    const parsed = extraerJson(raw);
+    const intRaw = String(parsed?.intencion || "");
+    const intencion = (INTENCIONES_VALIDAS.has(intRaw) ? intRaw : "otro") as InterpretacionRespuesta["intencion"];
+    const quiereDecir = String(parsed?.quiere_decir || "").trim();
+    const respuesta = String(parsed?.respuesta || "").trim();
+    if (respuesta) return { intencion, quiereDecir: quiereDecir || "(sin descripción)", respuesta };
+    return { intencion: "otro", quiereDecir: "(la IA no devolvió JSON válido)", respuesta: raw || respuestaPlantilla(p) };
+  } catch {
+    return { intencion: "otro", quiereDecir: "(error de conexión con la IA)", respuesta: respuestaPlantilla(p) };
+  }
+}
+
+/** Respuesta sugerida al mensaje entrante de un cliente (compatibilidad: solo el texto). */
+export async function generarRespuesta(p: Prospecto, mensajeCliente: string): Promise<string> {
+  return (await interpretarRespuesta(p, mensajeCliente)).respuesta;
 }

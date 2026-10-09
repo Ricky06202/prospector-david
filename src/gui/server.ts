@@ -23,7 +23,7 @@ import {
   guardarLote,
   ROOT,
 } from "../lib/prospectos-io.ts";
-import { generarEmail, generarSeguimiento, generarRespuesta, generarRetomaConDeepSeek, generarMuestraConDeepSeek, generarUpsellConDeepSeek } from "../envio/deepseek.ts";
+import { generarEmail, generarSeguimiento, generarRespuesta, interpretarRespuesta, generarRetomaConDeepSeek, generarMuestraConDeepSeek, generarUpsellConDeepSeek } from "../envio/deepseek.ts";
 import { PRECIOS, MATRIZ, cotizar, textoCotizacion, htmlCotizacion, cotizarEscalonada, textoCotizacionEscalonada, htmlCotizacionEscalonada } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
 import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces, mensajeRetoma, mensajeMuestra } from "../envio/anti-ban.ts";
@@ -371,8 +371,8 @@ app.post("/api/respuesta", async (c) => {
   const lista = await cargarProspectos();
   const p = lista.find((x) => x.id === id);
   if (!p) return c.json({ ok: false, error: "prospecto no encontrado" });
-  const texto = await generarRespuesta(p, mensaje);
-  return c.json({ ok: true, texto });
+  const r = await interpretarRespuesta(p, mensaje);
+  return c.json({ ok: true, intencion: r.intencion, quiereDecir: r.quiereDecir, respuesta: r.respuesta, texto: r.respuesta });
 });
 
 // Generador de textos: email, seguimiento, RETOMA, MUESTRA o UPSELL para un prospecto.

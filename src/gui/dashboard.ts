@@ -301,7 +301,8 @@ tbody tr:hover{background:#f8fafc}
 
       <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
         <h3 style="margin:0 0 4px">💬 Asistente de respuestas</h3>
-        <p class="sub">Pega el mensaje que te escribió el cliente y genera una respuesta sugerida con la oferta.</p>
+        <p class="sub">Pega el mensaje del cliente: te digo <b>qué quiere decir</b> y te doy la respuesta lista para copiar y enviar.</p>
+        <div id="resp-int" class="hidden" style="margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);background:#fff9e8;font-size:14px;line-height:1.45">🧠 <b>Qué quiere decir:</b> <span id="resp-int-txt"></span></div>
         <textarea id="resp-in" rows="3" placeholder="Mensaje entrante del cliente…" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
         <div class="row" style="margin-top:10px"><button data-accion="resp-generar">✨ Generar respuesta</button></div>
         <textarea id="resp-out" rows="8" placeholder="Respuesta sugerida…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
@@ -837,7 +838,10 @@ document.addEventListener('click', async (ev)=>{
     aviso('⏳ Generando respuesta…');
     const r=await api('/api/respuesta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,mensaje:msg})});
     if(r.ok){
-      $('#resp-out').value=r.texto;
+      $('#resp-out').value=(r.respuesta||r.texto);
+      const etq={interesado:'interesado',precio:'tema de precio',tiempo:'pide tiempo',permiso:'debe consultar con alguien',detalle:'pide más detalles',no_interesado:'no interesado',otro:'no encaja en un patrón típico'};
+      const ib=$('#resp-int'); ib.classList.remove('hidden');
+      $('#resp-int-txt').innerHTML='<i>'+String(etq[r.intencion]||etq.otro).replace(/</g,'&lt;')+'</i> — '+String(r.quiereDecir||'').replace(/</g,'&lt;');
       aviso('✓ Respuesta lista.');
       const link=$('#resp-wa'); link.href=waLink(prosTel(pid),r.texto); link.classList.remove('hidden');
     } else aviso('Error al generar','err');
