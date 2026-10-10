@@ -75,7 +75,7 @@ export function cotizar(tipo: TipoProyecto, productos = 0, plan = "sin"): Cotiza
 export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, productos: number, plan: string, fecha: string): string {
   const c = cotizar(tipo, productos, plan);
   const fila = (nombre: string, monto: number) =>
-    `<tr><td style="padding:11px 16px;border-bottom:1px solid rgba(140,180,255,.12);color:#cfe0f5">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid rgba(140,180,255,.12);text-align:right;font-weight:700;color:#ffffff">B/. ${monto.toFixed(2)}</td></tr>`;
+    `<tr><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">B/. ${monto.toFixed(2)}</td></tr>`;
 
   const filas = tipo === "catalogo"
     ? fila("Base del catálogo", PRECIOS.catalogoBase) +
@@ -86,7 +86,7 @@ export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, produc
   const filaMant = c.planInfo ? fila(`Mantenimiento ${c.planInfo.label.toLowerCase()} — cubre ${c.planInfo.dias} días`, c.planInfo.precio) : "";
 
   const mantBloque = c.planInfo
-    ? `<div style="margin-top:16px;padding:14px 16px;background:rgba(250,204,21,.10);border:1px solid rgba(250,204,21,.35);border-radius:12px;font-size:12px;color:#fde68a;line-height:1.6">
+    ? `<div style="margin-top:16px;padding:14px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;font-size:12px;color:#78350f;line-height:1.6">
         <b>Mantenimiento ${c.planInfo.label.toLowerCase()} · B/. ${c.planInfo.precio.toFixed(2)} — este pago cubre ${c.planInfo.dias} días de mantenimiento.</b>
         <ul style="margin:8px 0 0;padding-left:18px">
           <li>Actualización de contenido: precios, fotos, productos y promociones cuando lo necesites.</li>
@@ -96,37 +96,37 @@ export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, produc
         </ul>
       </div>`
     : tipo !== "mantenimiento"
-      ? `<div style="margin-top:16px;padding:14px 16px;background:rgba(34,211,238,.10);border:1px solid rgba(34,211,238,.30);border-radius:12px;font-size:12px;color:#a5f3fc;line-height:1.7">
+      ? `<div style="margin-top:16px;padding:14px 16px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;font-size:12px;color:#155e75;line-height:1.7">
           <b>Mantenimiento opcional</b> (contenido actualizado, soporte directo, respaldo y optimización):
           <div style="display:flex;gap:18px;margin-top:8px;flex-wrap:wrap">
-            <span><b style="color:#22d3ee">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)}</span>
-            <span><b style="color:#22d3ee">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)}</span>
-            <span><b style="color:#22d3ee">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)}</span>
+            <span><b style="color:#0891b2">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)}</span>
+            <span><b style="color:#0891b2">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)}</span>
+            <span><b style="color:#0891b2">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)}</span>
           </div>
         </div>`
       : "";
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
     *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
-    body{margin:0;background:#04060f;color:#eaf2fb}
+    body{margin:0;background:#ffffff;color:#0f172a}
     .brand{background:linear-gradient(135deg,#2563EB,#06B6D4,#8B5CF6);color:#fff;padding:22px 40px;display:flex;justify-content:space-between;align-items:center}
     .brand .t{font-weight:800;font-size:16px;letter-spacing:.02em}
-    .brand .s{font-size:11px;color:rgba(255,255,255,.85)}
-    .brand .n{font-size:11px;color:rgba(255,255,255,.9);text-align:right;line-height:1.5}
+    .brand .s{font-size:11px;color:rgba(255,255,255,.9)}
+    .brand .n{font-size:11px;color:rgba(255,255,255,.95);text-align:right;line-height:1.5}
     .body{padding:30px 40px}
-    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:1px solid rgba(140,180,255,.3)}
-    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em;color:#fff}
-    .tipo{color:#8ea3c0;font-size:12px;margin-top:3px}
-    .fecha{font-size:12px;color:#8ea3c0}
-    .total-box{background:linear-gradient(120deg,rgba(99,102,241,.4),rgba(34,211,238,.3));border:1px solid rgba(140,180,255,.35);color:#fff;border-radius:16px;padding:18px 24px;margin:20px 0;display:flex;justify-content:space-between;align-items:center}
-    .total-box .lbl{font-size:11px;color:#bcd0ea;text-transform:uppercase;letter-spacing:.1em}
-    .total-box .val{font-size:32px;font-weight:800;letter-spacing:-.02em}
-    .total-box .nota{font-size:11px;color:#cfe0f5;background:transparent;border:none;padding:0;margin:0}
+    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:2px solid #06B6D4}
+    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em;color:#0f172a}
+    .tipo{color:#64748b;font-size:12px;margin-top:3px}
+    .fecha{font-size:12px;color:#64748b}
+    .total-box{background:linear-gradient(120deg,#eff6ff,#ecfeff);border:1px solid #bfdbfe;color:#0f172a;border-radius:16px;padding:18px 24px;margin:20px 0;display:flex;justify-content:space-between;align-items:center}
+    .total-box .lbl{font-size:11px;color:#0369a1;text-transform:uppercase;letter-spacing:.1em}
+    .total-box .val{font-size:32px;font-weight:800;letter-spacing:-.02em;color:#0f172a}
+    .total-box .nota{font-size:11px;color:#475569;background:transparent;border:none;padding:0;margin:0}
     table{width:100%;border-collapse:collapse;font-size:14px}
-    th{text-align:left;color:#8ea3c0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px;border-bottom:1px solid rgba(140,180,255,.3)}
+    th{text-align:left;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px;border-bottom:1px solid #e2e8f0}
     th.m{text-align:right}
-    .nota{margin-top:18px;padding:14px 16px;background:rgba(150,190,255,.08);border:1px solid rgba(140,180,255,.2);border-radius:12px;font-size:12px;color:#cfe0f5;line-height:1.6}
-    .foot{margin-top:24px;font-size:11px;color:#8ea3c0;border-top:1px solid rgba(140,180,255,.2);padding-top:12px;display:flex;justify-content:space-between}
+    .nota{margin-top:18px;padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;font-size:12px;color:#334155;line-height:1.6}
+    .foot{margin-top:24px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
   </style></head><body>
     <div class="brand">
       <div><div class="t">Cotización</div><div class="s">Desarrollo web · David, Chiriquí</div></div>
@@ -300,7 +300,7 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
   const c = cotizarEscalonada(0, plan);
   const n1 = c.nivel1;
   const fila = (nombre: string, monto: string) =>
-    `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(140,180,255,.12);color:#cfe0f5">${nombre}</td><td style="padding:10px 16px;border-bottom:1px solid rgba(140,180,255,.12);text-align:right;font-weight:700;color:#ffffff">${monto}</td></tr>`;
+    `<tr><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">${monto}</td></tr>`;
 
   const filasN1 = fila("Landing Page optimizada (entregable en 48 h)", `B/. ${PRECIOS.landing.toFixed(2)}`) +
     (n1.planInfo
@@ -312,44 +312,44 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
     .join("");
 
   const mantBloque = n1.planInfo
-    ? `<div style="margin-top:14px;padding:12px 16px;background:rgba(250,204,21,.10);border:1px solid rgba(250,204,21,.35);border-radius:12px;font-size:12px;color:#fde68a;line-height:1.6">
+    ? `<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;font-size:12px;color:#78350f;line-height:1.6">
         <b>Mantenimiento ${n1.planInfo.label.toLowerCase()} · B/. ${n1.planInfo.precio.toFixed(2)} — este pago cubre ${n1.planInfo.dias} días.</b><br>
         Incluye: contenido actualizado (precios, fotos, productos), soporte directo, respaldo y optimización.
       </div>`
-    : `<div style="margin-top:14px;padding:12px 16px;background:rgba(250,204,21,.10);border:1px solid rgba(250,204,21,.35);border-radius:12px;font-size:12px;color:#fde68a;line-height:1.7">
+    : `<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;font-size:12px;color:#78350f;line-height:1.7">
         <b>Mantenimiento opcional</b> (aplica a cualquiera de los dos niveles) · contenido actualizado, soporte directo, respaldo y optimización:
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
-          <span><b style="color:#fbbf24">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)} (30 días)</span>
-          <span><b style="color:#fbbf24">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)} (90 días)</span>
-          <span><b style="color:#fbbf24">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)} (180 días)</span>
+          <span><b style="color:#b45309">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)} (30 días)</span>
+          <span><b style="color:#b45309">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)} (90 días)</span>
+          <span><b style="color:#b45309">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)} (180 días)</span>
         </div>
       </div>`;
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
     *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
-    body{margin:0;background:#04060f;color:#eaf2fb}
+    body{margin:0;background:#ffffff;color:#0f172a}
     .brand{background:linear-gradient(135deg,#2563EB,#06B6D4,#8B5CF6);color:#fff;padding:22px 40px;display:flex;justify-content:space-between;align-items:center}
     .brand .t{font-weight:800;font-size:16px;letter-spacing:.02em}
-    .brand .s{font-size:11px;color:rgba(255,255,255,.85)}
-    .brand .n{font-size:11px;color:rgba(255,255,255,.9);text-align:right;line-height:1.5}
+    .brand .s{font-size:11px;color:rgba(255,255,255,.9)}
+    .brand .n{font-size:11px;color:rgba(255,255,255,.95);text-align:right;line-height:1.5}
     .body{padding:30px 40px}
-    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:1px solid rgba(140,180,255,.3)}
-    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em;color:#fff}
-    .fecha{font-size:12px;color:#8ea3c0}
-    .nivel{border-radius:16px;padding:18px 22px;margin:16px 0;border:1px solid rgba(140,180,255,.2)}
-    .nivel h2{margin:0 0 4px;font-size:16px;font-weight:800;letter-spacing:-.01em;color:#fff}
+    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:2px solid #06B6D4}
+    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em;color:#0f172a}
+    .fecha{font-size:12px;color:#64748b}
+    .nivel{border-radius:16px;padding:18px 22px;margin:16px 0;border:1px solid #dbeafe}
+    .nivel h2{margin:0 0 4px;font-size:16px;font-weight:800;letter-spacing:-.01em;color:#0f172a}
     .nivel .precio{font-size:26px;font-weight:800;letter-spacing:-.02em}
-    .nivel .sub{font-size:12px;color:#8ea3c0;margin:2px 0 10px}
-    .n1{background:linear-gradient(160deg,rgba(34,211,238,.16),rgba(34,211,238,.04));border-color:rgba(34,211,238,.35)}
-    .n2{background:linear-gradient(160deg,rgba(99,102,241,.20),rgba(99,102,241,.05));border-color:rgba(99,102,241,.4)}
+    .nivel .sub{font-size:12px;color:#64748b;margin:2px 0 10px}
+    .n1{background:linear-gradient(160deg,#ecfeff,#f0f9ff);border-color:#a5f3fc}
+    .n2{background:linear-gradient(160deg,#eef2ff,#f5f3ff);border-color:#c7d2fe}
     table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
-    .extras{margin:10px 0 0;padding-left:20px;font-size:13px;color:#cfe0f5;line-height:1.7}
+    .extras{margin:10px 0 0;padding-left:20px;font-size:13px;color:#334155;line-height:1.7}
     .extras li{margin-bottom:4px}
-    .credito{margin-top:12px;padding:12px 16px;background:rgba(250,204,21,.10);border:1px solid rgba(250,204,21,.32);border-radius:12px;font-size:12px;color:#fde68a;line-height:1.6}
-    .pago{margin-top:14px;padding:12px 16px;background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.35);border-radius:12px;font-size:12px;color:#c7d2fe;line-height:1.6}
-    .garantia{margin-top:14px;padding:14px 16px;background:rgba(150,190,255,.07);border:1px solid rgba(140,180,255,.2);border-radius:12px;font-size:12px;color:#cfe0f5;line-height:1.7}
-    .garantia b{color:#7dd3fc}
-    .foot{margin-top:22px;font-size:11px;color:#8ea3c0;border-top:1px solid rgba(140,180,255,.2);padding-top:12px;display:flex;justify-content:space-between}
+    .credito{margin-top:12px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;font-size:12px;color:#78350f;line-height:1.6}
+    .pago{margin-top:14px;padding:12px 16px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;font-size:12px;color:#3730a3;line-height:1.6}
+    .garantia{margin-top:14px;padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;font-size:12px;color:#334155;line-height:1.7}
+    .garantia b{color:#0891b2}
+    .foot{margin-top:22px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
   </style></head><body>
     <div class="brand">
       <div><div class="t">Cotización en 2 niveles</div><div class="s">Desarrollo web · David, Chiriquí</div></div>
