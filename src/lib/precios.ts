@@ -75,7 +75,7 @@ export function cotizar(tipo: TipoProyecto, productos = 0, plan = "sin"): Cotiza
 export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, productos: number, plan: string, fecha: string): string {
   const c = cotizar(tipo, productos, plan);
   const fila = (nombre: string, monto: number) =>
-    `<tr><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">B/. ${monto.toFixed(2)}</td></tr>`;
+    `<tr><td style="padding:11px 16px;border-bottom:1px solid rgba(140,180,255,.12);color:#cfe0f5">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid rgba(140,180,255,.12);text-align:right;font-weight:700;color:#ffffff">B/. ${monto.toFixed(2)}</td></tr>`;
 
   const filas = tipo === "catalogo"
     ? fila("Base del catálogo", PRECIOS.catalogoBase) +
@@ -86,7 +86,7 @@ export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, produc
   const filaMant = c.planInfo ? fila(`Mantenimiento ${c.planInfo.label.toLowerCase()} — cubre ${c.planInfo.dias} días`, c.planInfo.precio) : "";
 
   const mantBloque = c.planInfo
-    ? `<div style="margin-top:16px;padding:14px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#78350f;line-height:1.6">
+    ? `<div style="margin-top:16px;padding:14px 16px;background:rgba(250,204,21,.10);border:1px solid rgba(250,204,21,.35);border-radius:12px;font-size:12px;color:#fde68a;line-height:1.6">
         <b>Mantenimiento ${c.planInfo.label.toLowerCase()} · B/. ${c.planInfo.precio.toFixed(2)} — este pago cubre ${c.planInfo.dias} días de mantenimiento.</b>
         <ul style="margin:8px 0 0;padding-left:18px">
           <li>Actualización de contenido: precios, fotos, productos y promociones cuando lo necesites.</li>
@@ -96,37 +96,37 @@ export function htmlCotizacion(nombreNegocio: string, tipo: TipoProyecto, produc
         </ul>
       </div>`
     : tipo !== "mantenimiento"
-      ? `<div style="margin-top:16px;padding:14px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:12px;color:#134e4a;line-height:1.7">
+      ? `<div style="margin-top:16px;padding:14px 16px;background:rgba(34,211,238,.10);border:1px solid rgba(34,211,238,.30);border-radius:12px;font-size:12px;color:#a5f3fc;line-height:1.7">
           <b>Mantenimiento opcional</b> (contenido actualizado, soporte directo, respaldo y optimización):
           <div style="display:flex;gap:18px;margin-top:8px;flex-wrap:wrap">
-            <span><b style="color:#0d9488">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)}</span>
-            <span><b style="color:#0d9488">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)}</span>
-            <span><b style="color:#0d9488">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)}</span>
+            <span><b style="color:#22d3ee">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)}</span>
+            <span><b style="color:#22d3ee">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)}</span>
+            <span><b style="color:#22d3ee">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)}</span>
           </div>
         </div>`
       : "";
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
-    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
-    body{margin:0;color:#0f172a}
-    .brand{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;padding:20px 40px;display:flex;justify-content:space-between;align-items:center}
-    .brand .t{font-weight:800;font-size:15px;letter-spacing:.02em}
-    .brand .s{font-size:11px;color:#ccfbf1}
-    .brand .n{font-size:11px;color:#ccfbf1;text-align:right;line-height:1.5}
+    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+    body{margin:0;background:#04060f;color:#eaf2fb}
+    .brand{background:linear-gradient(135deg,#2563EB,#06B6D4,#8B5CF6);color:#fff;padding:22px 40px;display:flex;justify-content:space-between;align-items:center}
+    .brand .t{font-weight:800;font-size:16px;letter-spacing:.02em}
+    .brand .s{font-size:11px;color:rgba(255,255,255,.85)}
+    .brand .n{font-size:11px;color:rgba(255,255,255,.9);text-align:right;line-height:1.5}
     .body{padding:30px 40px}
-    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:2px solid #0d9488}
-    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em}
-    .tipo{color:#64748b;font-size:12px;margin-top:3px}
-    .fecha{font-size:12px;color:#64748b}
-    .total-box{background:#0d9488;color:#fff;border-radius:14px;padding:16px 24px;margin:20px 0;display:flex;justify-content:space-between;align-items:center}
-    .total-box .lbl{font-size:11px;color:#ccfbf1;text-transform:uppercase;letter-spacing:.1em}
+    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:1px solid rgba(140,180,255,.3)}
+    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em;color:#fff}
+    .tipo{color:#8ea3c0;font-size:12px;margin-top:3px}
+    .fecha{font-size:12px;color:#8ea3c0}
+    .total-box{background:linear-gradient(120deg,rgba(99,102,241,.4),rgba(34,211,238,.3));border:1px solid rgba(140,180,255,.35);color:#fff;border-radius:16px;padding:18px 24px;margin:20px 0;display:flex;justify-content:space-between;align-items:center}
+    .total-box .lbl{font-size:11px;color:#bcd0ea;text-transform:uppercase;letter-spacing:.1em}
     .total-box .val{font-size:32px;font-weight:800;letter-spacing:-.02em}
-    .total-box .nota{font-size:11px;color:#ccfbf1;background:transparent;border:none;padding:0;margin:0}
+    .total-box .nota{font-size:11px;color:#cfe0f5;background:transparent;border:none;padding:0;margin:0}
     table{width:100%;border-collapse:collapse;font-size:14px}
-    th{text-align:left;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px;border-bottom:1px solid #e2e8f0}
+    th{text-align:left;color:#8ea3c0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px;border-bottom:1px solid rgba(140,180,255,.3)}
     th.m{text-align:right}
-    .nota{margin-top:18px;padding:14px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:12px;color:#134e4a;line-height:1.6}
-    .foot{margin-top:24px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
+    .nota{margin-top:18px;padding:14px 16px;background:rgba(150,190,255,.08);border:1px solid rgba(140,180,255,.2);border-radius:12px;font-size:12px;color:#cfe0f5;line-height:1.6}
+    .foot{margin-top:24px;font-size:11px;color:#8ea3c0;border-top:1px solid rgba(140,180,255,.2);padding-top:12px;display:flex;justify-content:space-between}
   </style></head><body>
     <div class="brand">
       <div><div class="t">Cotización</div><div class="s">Desarrollo web · David, Chiriquí</div></div>
@@ -248,11 +248,11 @@ export function textoCotizacionEscalonada(nombreNegocio: string, plan = "sin"): 
   const n1 = c.nivel1;
   const lineas: string[] = [
     `Cotización en 2 niveles · ${nombreNegocio}`,
-    `${MATRIZ.nombre} · ${MATRIZ.rubro} · ${MATRIZ.ubicacion} · ${MATRIZ.contacto}`,
+    `Ricardo Sanjur · Desarrollo web · David, Chiriquí · WhatsApp 6510-4147`,
     ``,
     `──────────────────────────`,
     `NIVEL 1 - APERTURA`,
-    `Landing Page optimizada · entregable en 24 h`,
+    `Landing Page optimizada · entregable en 48 h`,
     `B/. ${PRECIOS.landing.toFixed(2)}`,
     ``,
     `  • Dominio propio, alojamiento, diseño a medida y botón directo de WhatsApp`,
@@ -265,7 +265,7 @@ export function textoCotizacionEscalonada(nombreNegocio: string, plan = "sin"): 
   lineas.push(
     ``,
     `──────────────────────────`,
-    `NIVEL 2 - UPSEL INSTITUCIONAL`,
+    `NIVEL 2 - UPSELL INSTITUCIONAL`,
     `${c.nivel2.tipoLabel} · desde B/. ${PRECIOS.plataforma.toLocaleString("es-PA")}.00`,
     `(${c.nivel2.entrega})`,
     ``
@@ -300,9 +300,9 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
   const c = cotizarEscalonada(0, plan);
   const n1 = c.nivel1;
   const fila = (nombre: string, monto: string) =>
-    `<tr><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">${monto}</td></tr>`;
+    `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(140,180,255,.12);color:#cfe0f5">${nombre}</td><td style="padding:10px 16px;border-bottom:1px solid rgba(140,180,255,.12);text-align:right;font-weight:700;color:#ffffff">${monto}</td></tr>`;
 
-  const filasN1 = fila("Landing Page optimizada (entregable en 24 h)", `B/. ${PRECIOS.landing.toFixed(2)}`) +
+  const filasN1 = fila("Landing Page optimizada (entregable en 48 h)", `B/. ${PRECIOS.landing.toFixed(2)}`) +
     (n1.planInfo
       ? fila(`Mantenimiento ${n1.planInfo.label.toLowerCase()} — este pago cubre ${n1.planInfo.dias} días`, `B/. ${n1.planInfo.precio.toFixed(2)}`)
       : "");
@@ -312,48 +312,48 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
     .join("");
 
   const mantBloque = n1.planInfo
-    ? `<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#78350f;line-height:1.6">
+    ? `<div style="margin-top:14px;padding:12px 16px;background:rgba(250,204,21,.10);border:1px solid rgba(250,204,21,.35);border-radius:12px;font-size:12px;color:#fde68a;line-height:1.6">
         <b>Mantenimiento ${n1.planInfo.label.toLowerCase()} · B/. ${n1.planInfo.precio.toFixed(2)} — este pago cubre ${n1.planInfo.dias} días.</b><br>
         Incluye: contenido actualizado (precios, fotos, productos), soporte directo, respaldo y optimización.
       </div>`
-    : `<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#78350f;line-height:1.7">
+    : `<div style="margin-top:14px;padding:12px 16px;background:rgba(250,204,21,.10);border:1px solid rgba(250,204,21,.35);border-radius:12px;font-size:12px;color:#fde68a;line-height:1.7">
         <b>Mantenimiento opcional</b> (aplica a cualquiera de los dos niveles) · contenido actualizado, soporte directo, respaldo y optimización:
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
-          <span><b style="color:#b45309">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)} (30 días)</span>
-          <span><b style="color:#b45309">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)} (90 días)</span>
-          <span><b style="color:#b45309">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)} (180 días)</span>
+          <span><b style="color:#fbbf24">Mensual</b> · B/. ${PLANES.mensual.precio.toFixed(2)} (30 días)</span>
+          <span><b style="color:#fbbf24">Trimestral</b> · B/. ${PLANES.trimestral.precio.toFixed(2)} (90 días)</span>
+          <span><b style="color:#fbbf24">Semestral</b> · B/. ${PLANES.semestral.precio.toFixed(2)} (180 días)</span>
         </div>
       </div>`;
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
-    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
-    body{margin:0;color:#0f172a}
-    .brand{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;padding:20px 40px;display:flex;justify-content:space-between;align-items:center}
-    .brand .t{font-weight:800;font-size:15px;letter-spacing:.02em}
-    .brand .s{font-size:11px;color:#ccfbf1}
-    .brand .n{font-size:11px;color:#ccfbf1;text-align:right;line-height:1.5}
+    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+    body{margin:0;background:#04060f;color:#eaf2fb}
+    .brand{background:linear-gradient(135deg,#2563EB,#06B6D4,#8B5CF6);color:#fff;padding:22px 40px;display:flex;justify-content:space-between;align-items:center}
+    .brand .t{font-weight:800;font-size:16px;letter-spacing:.02em}
+    .brand .s{font-size:11px;color:rgba(255,255,255,.85)}
+    .brand .n{font-size:11px;color:rgba(255,255,255,.9);text-align:right;line-height:1.5}
     .body{padding:30px 40px}
-    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:2px solid #0d9488}
-    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em}
-    .fecha{font-size:12px;color:#64748b}
-    .nivel{border-radius:14px;padding:18px 22px;margin:16px 0}
-    .nivel h2{margin:0 0 4px;font-size:16px;font-weight:800;letter-spacing:-.01em}
+    .cabeza{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:14px;border-bottom:1px solid rgba(140,180,255,.3)}
+    .neg{font-size:20px;font-weight:800;letter-spacing:-.01em;color:#fff}
+    .fecha{font-size:12px;color:#8ea3c0}
+    .nivel{border-radius:16px;padding:18px 22px;margin:16px 0;border:1px solid rgba(140,180,255,.2)}
+    .nivel h2{margin:0 0 4px;font-size:16px;font-weight:800;letter-spacing:-.01em;color:#fff}
     .nivel .precio{font-size:26px;font-weight:800;letter-spacing:-.02em}
-    .nivel .sub{font-size:12px;color:#475569;margin:2px 0 10px}
-    .n1{background:#fef3c7;border:1px solid #fde68a}
-    .n2{background:#f0fdf4;border:1px solid #bbf7d0}
+    .nivel .sub{font-size:12px;color:#8ea3c0;margin:2px 0 10px}
+    .n1{background:linear-gradient(160deg,rgba(34,211,238,.16),rgba(34,211,238,.04));border-color:rgba(34,211,238,.35)}
+    .n2{background:linear-gradient(160deg,rgba(99,102,241,.20),rgba(99,102,241,.05));border-color:rgba(99,102,241,.4)}
     table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
-    .extras{margin:10px 0 0;padding-left:20px;font-size:13px;color:#334155;line-height:1.7}
+    .extras{margin:10px 0 0;padding-left:20px;font-size:13px;color:#cfe0f5;line-height:1.7}
     .extras li{margin-bottom:4px}
-    .credito{margin-top:12px;padding:12px 16px;background:#fefce8;border:1px solid #fef08a;border-radius:10px;font-size:12px;color:#713f12;line-height:1.6}
-    .pago{margin-top:14px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;font-size:12px;color:#1e40af;line-height:1.6}
-    .garantia{margin-top:14px;padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;font-size:12px;color:#334155;line-height:1.7}
-    .garantia b{color:#0d9488}
-    .foot{margin-top:22px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
+    .credito{margin-top:12px;padding:12px 16px;background:rgba(250,204,21,.10);border:1px solid rgba(250,204,21,.32);border-radius:12px;font-size:12px;color:#fde68a;line-height:1.6}
+    .pago{margin-top:14px;padding:12px 16px;background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.35);border-radius:12px;font-size:12px;color:#c7d2fe;line-height:1.6}
+    .garantia{margin-top:14px;padding:14px 16px;background:rgba(150,190,255,.07);border:1px solid rgba(140,180,255,.2);border-radius:12px;font-size:12px;color:#cfe0f5;line-height:1.7}
+    .garantia b{color:#7dd3fc}
+    .foot{margin-top:22px;font-size:11px;color:#8ea3c0;border-top:1px solid rgba(140,180,255,.2);padding-top:12px;display:flex;justify-content:space-between}
   </style></head><body>
     <div class="brand">
-      <div><div class="t">Cotización en 2 niveles</div><div class="s">${MATRIZ.nombre} · ${MATRIZ.rubro}</div></div>
-      <div class="n">${MATRIZ.nombre}<br>${MATRIZ.ubicacion}<br>${MATRIZ.contacto}</div>
+      <div><div class="t">Cotización en 2 niveles</div><div class="s">Desarrollo web · David, Chiriquí</div></div>
+      <div class="n">Ricardo Sanjur<br>WhatsApp 6510-4147</div>
     </div>
     <div class="body">
       <div class="cabeza">
@@ -364,7 +364,7 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
       <div class="nivel n1">
         <h2>Nivel 1 · Apertura</h2>
         <div class="precio">B/. ${c.totalNivel1.toFixed(2)}</div>
-        <div class="sub">Landing Page optimizada · entregable en 24 h</div>
+        <div class="sub">Landing Page optimizada · entregable en 48 h</div>
         <table><tbody>${filasN1}</tbody></table>
       </div>
 
@@ -385,7 +385,7 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
 
       <div class="foot">
         <span>Cotización sin compromiso · Válida por 15 días</span>
-        <span>${MATRIZ.nombre} · ${MATRIZ.contacto}</span>
+        <span>Ricardo Sanjur · WhatsApp 6510-4147</span>
       </div>
     </div>
   </body></html>`;
