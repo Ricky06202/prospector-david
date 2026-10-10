@@ -494,6 +494,21 @@ app.post("/api/prospectos/:id/estado", async (c) => {
   return c.json({ ok: true, prospecto: actualizada.find((p) => p.id === id) });
 });
 
+app.post("/api/prospectos/:id/diseno", async (c) => {
+  const id = c.req.param("id");
+  const b = await c.req.json().catch(() => ({}));
+  const lista = await cargarProspectos();
+  const i = lista.findIndex((p) => p.id === id);
+  if (i < 0) return c.json({ ok: false, error: "prospecto no encontrado" }, 404);
+  const p = lista[i];
+  if ("color_accent" in b) p.color_accent = String(b.color_accent || p.color_accent);
+  if ("tagline" in b) p.tagline = String(b.tagline || "");
+  if ("logo" in b) p.logo = String(b.logo || "");
+  lista[i] = p;
+  await guardarProspectos(lista);
+  return c.json({ ok: true, prospecto: p });
+});
+
 app.get("/api/prospectos/:id/fotos", async (c) => {
   const id = c.req.param("id");
   try {
