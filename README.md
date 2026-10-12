@@ -4,9 +4,10 @@ Pipeline end-to-end de prospección local para negocios de **David, Chiriquí**:
 **scraper → landings Astro → capturas → copys de WhatsApp** (envío 100% manual para proteger tu cuenta).
 
 > **Filosofía:** la landing automática es un *gancho de venta*, no el producto final.
-> Su trabajo es que el cliente diga "sí" al paquete de **Nivel 1** ($300, landing en 24 h).
-> Una vez dentro, el **Nivel 2** (Plataforma Operativa / Dashboard, desde $1,200) es el
-> upsell institucional que se vende bajo la garantía de la empresa matriz.
+> Su trabajo es que el cliente diga "sí" al paquete que le sirve según su negocio
+> (**Página web** $300, **Catálogo** $400, **Pedidos y pagos** $400+$25/mes, **Inscripciones**
+> $500+$25/mes, **Reservas** $500+$25/mes, **Portal de archivos y citas** $400 o
+> **Sistema a medida** desde $1,200), respaldado por la empresa matriz.
 
 ### Las 4 mejoras estratégicas
 1. **Lead Scoring**: el motor de Places API puntúa y prioriza negocios tradicionales
@@ -20,9 +21,11 @@ Pipeline end-to-end de prospección local para negocios de **David, Chiriquí**:
    enlaces ni emojis** (`ENVIAR_ENLACES=false`): la muestra se entrega como imágenes
    adjuntas. Quien no respondió entra en **Seguimientos** con un mensaje de retoma
    adaptado a los días transcurridos (se re-envía aun tras un mes).
-3. **Cotizador escalonado** ("Caballo de Troya"): Nivel 1 = Landing en 24 h por $300 ·
-   Nivel 2 = Plataforma Operativa / Dashboard desde $1,200 bajo el paraguas de
-   **Topografía Especializada S.A.** Texto y PDF en 2 niveles (GUI → Cotizador escalonado).
+3. **Cotizador por paquete** (fuente única en `src/lib/precios.ts`): ofrece el paquete
+   que corresponde al contexto del negocio (página web, catálogo, pedidos, inscripciones,
+   reservas, portal, mantenimiento o sistema a medida), con mantenimiento opcional desde
+   los planes. El modo escalonado (Nivel 1 + 2, dashboard desde $1,200 bajo **Topografía
+   Especializada S.A.**) se conserva por compatibilidad. Texto y PDF por paquete.
 4. **Pipeline de prototipado optimizado**: una sola instancia de Chromium para todo el
    lote, espera por fuentes (no sleeps fijos), capturas **JPEG livianas por defecto**
    (las 6 imágenes ≈ 1MB, cargan al instante en WhatsApp), salta lo ya capturado
@@ -157,13 +160,16 @@ el estado `seguimiento` de cada prospecto (el reloj parte de `ultimo_contacto`).
 
 El flujo que convierte: scrapea (Places con scoring) → revisa el reporte → envía manualmente
 siguiendo el ritmo anti-ban (mensaje 1 = apertura sin enlaces, mensaje 2 = muestra tras la
-respuesta) → muestra la maqueta → cierra el **Nivel 1** ($300, landing en 24 h) → ahí sí
-construyes la landing personalizada (con su color, fotos reales y mapa con pin).
+respuesta) → muestra la maqueta → cierra el paquete que le sirve a ese negocio (**Página
+web** $300 para presencia, **Catálogo** $400 para inventario, **Pedidos y pagos**
+$400+$25/mes para restaurantes y panaderías, **Inscripciones** $500+$25/mes para academias
+y gimnasios, **Reservas** $500+$25/mes para cabañas y tours, o **Portal de archivos y citas**
+$400 para clínicas, despachos e inmobiliarias) → ahí sí construyes el proyecto con su color,
+fotos reales y mapa con pin.
 
-Una vez que el negocio confía en ti, abre el **Nivel 2**: la *Plataforma Operativa /
-Dashboard a la medida* (desde $1,200), cotizada bajo la garantía de la empresa matriz
-(Topografía Especializada S.A.). El caballo de Troya: la landing de $300 abre la puerta;
-el dashboard institucional paga el margen.
+Para negocios con operación compleja, ofrece el **Sistema a medida** (desde $1,200),
+cotizado bajo la garantía de la empresa matriz (Topografía Especializada S.A.). El
+mantenimiento ($25 a $40/mes) se elige aparte, desde los planes.
 
 ## 8. Despliegue en GitHub
 

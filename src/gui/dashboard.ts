@@ -1,4 +1,5 @@
 /** Dashboard de Prospector David — SPA multi-página (sidebar como navegador). */
+import { PAQUETES } from "../lib/precios.ts";
 export const DASHBOARD = `<!doctype html>
 <html lang="es">
 <head>
@@ -313,15 +314,20 @@ tbody tr:hover{background:#f8fafc}
       </div>
 
       <div style="border-top:1px solid var(--line);margin-top:20px;padding-top:16px">
-        <h3 style="margin:0 0 4px">🧾 Cotizador escalonado</h3>
-        <p class="sub">Estrategia del Caballo de Troya: Nivel 1 = Landing en 24 h ($300) · Nivel 2 = Plataforma Operativa ($1,200+, respaldada por la empresa matriz).</p>
+        <h3 style="margin:0 0 4px">🧾 Cotizador por paquete</h3>
+        <p class="sub">Elige el paquete que le sirve a ese negocio (página web, catálogo, pedidos, inscripciones, reservas, portal, sistema a medida) o un tipo tradicional. El mantenimiento se elige aparte en los planes.</p>
         <div class="row">
           <select id="cot-tipo" style="min-width:220px">
-            <option value="escalonada" selected>Escalonada (2 niveles)</option>
-            <option value="landing">Solo Nivel 1 — Landing</option>
-            <option value="catalogo">Catálogo en línea + WhatsApp</option>
-            <option value="ecommerce">Tienda en línea con pagos</option>
-            <option value="mantenimiento">Solo mantenimiento (renovación)</option>
+            <optgroup label="Paquetes (recomendado)">
+              ${PAQUETES.map(p => '<option value="pk:' + p.id + '"' + (p.id === 'pagina' ? ' selected' : '') + '>' + p.nombre + ' · B/. ' + p.precio + (p.precio_mes ? ' + B/. ' + p.precio_mes + '/mes' : '') + (p.desde ? ' (desde)' : '') + '</option>').join('')}
+            </optgroup>
+            <optgroup label="Tipo tradicional">
+              <option value="escalonada">Escalonada (Nivel 1 + 2 · legado)</option>
+              <option value="landing">Landing</option>
+              <option value="catalogo">Catálogo en línea + WhatsApp</option>
+              <option value="ecommerce">Tienda en línea con pagos</option>
+              <option value="mantenimiento">Solo mantenimiento (renovación)</option>
+            </optgroup>
           </select>
           <span id="cot-productos-wrap" style="display:none">
             <input type="number" id="cot-productos" placeholder="Nº productos" min="0" value="0" style="width:130px">
@@ -334,7 +340,7 @@ tbody tr:hover{background:#f8fafc}
           </select>
           <button data-accion="cot-generar">🧾 Generar cotización</button>
         </div>
-        <p class="muted" style="margin:8px 0 0">Escalonada = página YA (24 h) + semilla del upsell institucional (dashboard desde $1,200) bajo la garantía de la empresa matriz. El TOTAL inicial suma el Nivel 1 + el plan elegido.</p>
+        <p class="muted" style="margin:8px 0 0">El paquete ya incluye su mensualidad cuando aplica (pedidos, inscripciones y reservas). El TOTAL inicial suma el valor del paquete + el plan de mantenimiento elegido. "Escalonada" se mantiene como modo legado (Nivel 1 + 2, dashboard desde $1,200 bajo la empresa matriz).</p>
         <textarea id="cot-out" rows="11" placeholder="Cotización escalonada…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
         <div class="row" style="margin-top:10px">
           <button data-accion="cot-copiar">📋 Copiar</button>
@@ -701,9 +707,10 @@ function mostrarInfoSel(){
 // Cotizador: mostrar/ocultar el campo de productos según el tipo de proyecto.
 function cotToggle(){
   const tipo=$('#cot-tipo').value;
-  $('#cot-productos-wrap').style.display=(tipo==='catalogo')?'':'none';
-  // Para "solo mantenimiento" se exige un plan (nunca "sin").
-  if(tipo==='mantenimiento' && $('#cot-mant').value==='sin') $('#cot-mant').value='mensual';
+  // El nº de productos aplica al catálogo tradicional y al paquete de catálogo.
+  $('#cot-productos-wrap').style.display=(tipo==='catalogo'||tipo==='pk:catalogo')?'':'none';
+  // "Solo mantenimiento" (tipo o paquete) exige un plan (nunca "sin").
+  if((tipo==='mantenimiento'||tipo==='pk:mantenimiento') && $('#cot-mant').value==='sin') $('#cot-mant').value='mensual';
 }
 $('#cot-tipo').addEventListener('change', cotToggle);
 cotToggle();
@@ -854,17 +861,22 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='cot-generar'){
     const pid=$('#txt-prospecto').value;
     if(!pid){ aviso('Selecciona un prospecto en el selector de arriba','err'); return; }
-    const tipo=$('#cot-tipo').value, productos=+$('#cot-productos').value||0;
+    const sel=$('#cot-tipo').value, productos=+$('#cot-productos').value||0;
+    const esPk=sel.indexOf('pk:')===0;
+    const paquete=esPk?sel.slice(3):'';
+    const tipo=esPk?'escalonada':sel;
     let plan=$('#cot-mant').value;
-    if(tipo==='catalogo'&&productos<=0){ aviso('Indica el nº de productos del catálogo','err'); return; }
-    if(tipo==='mantenimiento'&&plan==='sin') plan='mensual';
+    if(sel==='catalogo'&&productos<=0){ aviso('Indica el nº de productos del catálogo','err'); return; }
+    if((sel==='mantenimiento'||sel==='pk:mantenimiento')&&plan==='sin') plan='mensual';
     aviso('⏳ Armando cotización…');
-    const r=await api('/api/cotizador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,plan})});
+    const r=await api('/api/cotizador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,paquete,productos,plan})});
     if(r.ok){
       $('#cot-out').value=r.texto;
-      $('#cot-info').textContent=r.escalonada
-        ? 'N1 Landing B/. '+r.cotizacion.totalNivel1.toFixed(2)+' · N2 Plataforma desde B/. '+r.cotizacion.desdeNivel2.toLocaleString('es-PA')+'.00'
-        : 'Total inicial: B/. '+r.cotizacion.total.toFixed(2)+(r.cotizacion.planInfo?' (+ '+r.cotizacion.planInfo.label+' '+r.cotizacion.planInfo.dias+' días)':'');
+      $('#cot-info').textContent=r.paquete
+        ? 'Paquete '+r.cotizacion.paquete.nombre+': B/. '+r.cotizacion.total.toFixed(2)+(r.cotizacion.planInfo?' (+ '+r.cotizacion.planInfo.label+' '+r.cotizacion.planInfo.dias+' días)':'')+(r.cotizacion.mensualRecurrente?' · +B/. '+r.cotizacion.mensualRecurrente+'/mes':'')
+        : r.escalonada
+          ? 'N1 Landing B/. '+r.cotizacion.totalNivel1.toFixed(2)+' · N2 Plataforma desde B/. '+r.cotizacion.desdeNivel2.toLocaleString('es-PA')+'.00'
+          : 'Total inicial: B/. '+r.cotizacion.total.toFixed(2)+(r.cotizacion.planInfo?' (+ '+r.cotizacion.planInfo.label+' '+r.cotizacion.planInfo.dias+' días)':'');
       aviso('✓ Cotización lista — cópiala y envíala.');
     } else aviso('Error al cotizar','err');
   }
@@ -901,12 +913,15 @@ document.addEventListener('click', async (ev)=>{
   else if(accion==='cot-pdf'){
     const pid=$('#txt-prospecto').value;
     if(!pid){ aviso('Selecciona un prospecto','err'); return; }
-    const tipo=$('#cot-tipo').value, productos=+$('#cot-productos').value||0;
+    const sel=$('#cot-tipo').value, productos=+$('#cot-productos').value||0;
+    const esPk=sel.indexOf('pk:')===0;
+    const paquete=esPk?sel.slice(3):'';
+    const tipo=esPk?'escalonada':sel;
     let plan=$('#cot-mant').value;
-    if(tipo==='mantenimiento'&&plan==='sin') plan='mensual';
+    if((sel==='mantenimiento'||sel==='pk:mantenimiento')&&plan==='sin') plan='mensual';
     setBusy(true); aviso('⏳ Generando PDF…');
     try{
-    const r=await fetch('/api/cotizador/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,productos,plan})});
+    const r=await fetch('/api/cotizador/pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pid,tipo,paquete,productos,plan})});
     if(r.ok){
       const blob=await r.blob();
       const a=document.createElement('a');

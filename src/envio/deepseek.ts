@@ -9,6 +9,7 @@
 import "dotenv/config";
 import type { Prospecto } from "../types.ts";
 import { mensajeApertura, mensajeMuestra, mensajeRetoma, esMensajeAperturaSeguro, contieneEnlaces } from "./anti-ban.ts";
+import { paquetePorRubro } from "../lib/precios.ts";
 
 /** Plantilla local (fallback) del MENSAJE 1 — APERTURA (sin enlaces). */
 export function copyPlantilla(p: Prospecto): string {
@@ -261,10 +262,15 @@ function extraerJson(texto: string): Record<string, unknown> | null {
 
 /** Respuesta de respaldo cuando la IA no está disponible o no devuelve JSON válido. */
 function respuestaPlantilla(p: Prospecto): string {
+  const pk = paquetePorRubro(p.tipo);
+  const recomendado = pk
+    ? `Para su rubro lo que mejor encaja es el paquete ${pk.nombre} — B/. ${pk.precio.toFixed(2)}${pk.precio_mes ? ` + B/. ${pk.precio_mes.toFixed(2)}/mes` : ""}${pk.desde ? " (desde)" : ""}.`
+    : "El paquete base es Página web (B/. 300) e incluye dominio propio, diseño a medida y botón de WhatsApp.";
   return [
     "¡Gracias por escribirnos! Claro, con gusto los ayudo.",
     "",
-    "Lo que vieron es solo la muestra: el sitio completo incluye dominio propio, diseño a medida, botón de WhatsApp directo y ajustes, por una inversión única de $300. Si necesitan catálogo con pedidos, se cotiza aparte según la cantidad de productos.",
+    `Lo que vieron es la muestra: el sitio completo incluye dominio propio, diseño a medida y botón de WhatsApp directo. ${recomendado}`,
+    "Si necesitan catálogo, pedidos, inscripciones, reservas o citas, se cotiza según el alcance.",
     "",
     "¿Les paso los detalles o preferís una llamada corta? Sin compromiso.",
   ].join("\n");
@@ -276,13 +282,18 @@ function respuestaPlantilla(p: Prospecto): string {
  */
 export async function interpretarRespuesta(p: Prospecto, mensajeCliente: string): Promise<InterpretacionRespuesta> {
   const yaTieneSitio = p.tiene_web === true;
+  const pk = paquetePorRubro(p.tipo);
+  const pistaPaquete = pk
+    ? `El paquete que mejor encaja con su rubro "${p.tipo}" es ${pk.nombre} (B/. ${pk.precio.toFixed(2)}${pk.precio_mes ? ` + B/. ${pk.precio_mes.toFixed(2)}/mes` : ""}${pk.desde ? ", desde" : ""}). Ofrécelo por su NOMBRE, nunca como "nivel".`
+    : 'Ofrece el paquete que corresponda a lo que pide el negocio por su NOMBRE (catálogo, pedidos, inscripciones, reservas, portal o sistema a medida); no uses la palabra "nivel".';
   const reglasSitio = yaTieneSitio
-    ? "IMPORTANTE: este negocio YA tiene su página web (es cliente actual). NO ofrezcas la landing de $300 ni la muestra gratis: enfócate SOLO en el upgrade que pide (catálogo, pedidos por WhatsApp, reservas, panel) y preséntalo como proyecto aparte que se cotiza según el alcance."
-    : "Este negocio es un prospecto nuevo que ya recibió una MUESTRA GRATIS de su futura web: si pide más que una presentación, recordá que la landing de $300 es la base y que el catálogo/pedidos se cotiza aparte.";
+    ? "IMPORTANTE: este negocio YA tiene su página web (es cliente actual). NO ofrezcas la página web básica ni la muestra gratis: enfócate SOLO en el upgrade que pide (catálogo, pedidos, inscripciones, reservas, portal de archivos y citas, sistema a medida) y preséntalo como proyecto aparte que se cotiza según el alcance."
+    : "Este negocio es un prospecto nuevo que ya recibió una MUESTRA GRATIS de su futura web: si pide más que una presentación, recordá que el paquete base es Página web (B/. 300) y que catálogo/pedidos/inscripciones/reservas/portal se cotizan aparte.";
   const sist =
     "Eres un asesor de ventas y TRADUCTOR de mensajes para un desarrollador web local de David, Chiriquí.\n" +
     'El negocio se llama EXACTAMENTE "' + p.nombre_negocio + '" y su rubro es "' + p.tipo + '" — jamás lo llames de otra forma ni cambies su rubro.\n' +
     reglasSitio + "\n" +
+    pistaPaquete + "\n" +
     "Devuelve SOLO un objeto JSON válido (sin texto extra, sin bloques de código) con esta forma exacta:\n" +
     '{"intencion":"interesado|precio|tiempo|permiso|detalle|no_interesado|otro","quiere_decir":"...","respuesta":"..."}\n' +
     "- intencion: lo que el cliente REALMENTE quiere (tiempo = 'déjame pensarlo / después'; permiso = debe consultar con socio o familia; precio = pregunta cuánto o le parece caro; detalle = pide más información; no_interesado = rechazo claro).\n" +
