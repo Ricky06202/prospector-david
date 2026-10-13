@@ -154,7 +154,7 @@ export function mensajeCierre(p: Prospecto): string {
   return [
     `Hola ${p.nombre_negocio}: ¿Alcanzaron a ver las vistas que les envié de su página?`,
     ``,
-    `Si les interesa, además de la página podemos montarles un panel para controlar pedidos, citas o su operación diaria desde el celular.`,
+    `Si les interesa, además de la página podemos montarles un sistema a medida: Pedidos y pagos, Reservas, Inscripciones y pagos o Portal de archivos y citas.`,
     ``,
     `Solo díganme y les paso los detalles. Sin compromiso, ¡saludos!`,
   ].join("\n");

@@ -24,7 +24,7 @@ import {
   ROOT,
 } from "../lib/prospectos-io.ts";
 import { generarEmail, generarSeguimiento, generarRespuesta, interpretarRespuesta, generarRetomaConDeepSeek, generarMuestraConDeepSeek, generarUpsellConDeepSeek } from "../envio/deepseek.ts";
-import { PRECIOS, MATRIZ, PAQUETES, cotizar, textoCotizacion, htmlCotizacion, cotizarEscalonada, textoCotizacionEscalonada, htmlCotizacionEscalonada, cotizarPaquete, textoCotizacionPaquete, htmlCotizacionPaquete } from "../lib/precios.ts";
+import { PRECIOS, MATRIZ, PAQUETES, MAPA_PAQUETES, paquetePorRubro, cotizar, textoCotizacion, htmlCotizacion, cotizarEscalonada, textoCotizacionEscalonada, htmlCotizacionEscalonada, cotizarPaquete, textoCotizacionPaquete, htmlCotizacionPaquete } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
 import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces, mensajeRetoma, mensajeMuestra } from "../envio/anti-ban.ts";
 import { waLink } from "../envio/deepseek.ts";
@@ -448,10 +448,14 @@ app.get("/api/seguimientos", async (c) => {
     // INSTANTÁNEO: usa caché o plantilla rápida (sin DeepSeek en la carga de la lista).
     const retoma = cacheRetoma.get(p.id) ?? mensajeRetoma(p, dias);
     const muestra = cacheMuestra.get(p.id) ?? mensajeMuestra(p);
+    // Paquete publicado que le sirve a este rubro (Mensajería usa el nombre y el
+    // precio de rsanjur.com, nunca un nombre alterno).
+    const pk = paquetePorRubro(p.tipo) ?? MAPA_PAQUETES.pagina;
     items.push({
       id: p.id,
       nombre_negocio: p.nombre_negocio,
       tipo: p.tipo,
+      paquete: { id: pk.id, nombre: pk.nombre, precio_label: pk.precio_label, nota: pk.nota },
       estado: p.estado,
       dias_desde_contacto: dias,
       ultimo_contacto: p.ultimo_contacto || p.enviado_en,

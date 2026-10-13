@@ -21,9 +21,9 @@ export function mensajeUpsellPlantilla(p: Prospecto): string {
   return [
     `Hola ${p.nombre_negocio}:`,
     ``,
-    `Vi que ya tienen su página web, muy bien. Justamente por eso les escribo: nuestro equipo desarrolla paneles de control a la medida (pedidos, citas, inventario, reportes) para negocios que ya operan en internet.`,
+    `Vi que ya tienen su página web, muy bien. Justamente por eso les escribo: nuestro equipo desarrolla Sistemas a medida (Pedidos y pagos, Reservas, Inscripciones y pagos, Portal de archivos y citas) para negocios que ya operan en internet.`,
     ``,
-    `Les preparé una idea de cómo se vería su panel con su operación. ¿Se la comparto por aquí? Sin compromiso, solo 2 minutos.`,
+    `Les preparé una idea de cómo se vería su sistema con su operación. ¿Se la comparto por aquí? Sin compromiso, solo 2 minutos.`,
   ].join("\n");
 }
 
@@ -32,7 +32,7 @@ export async function generarUpsellConDeepSeek(p: Prospecto): Promise<string> {
   const key = process.env.DEEPSEEK_API_KEY;
   if (!key) return mensajeUpsellPlantilla(p);
   const sist =
-    "Eres un desarrollador de software de David, Chiriquí. Escribe un mensaje de WhatsApp de APERTURA (máx 80 palabras) para un negocio local que YA TIENE su página web en buen estado. NO ofrezcas landing ni 'muestra de página web' (ese no es su problema). Objetivo: 1) felicitar/notar que ya tienen web, 2) proponer el siguiente nivel: un PANEL DE CONTROL a la medida (pedidos, citas, inventario, reportes) para digitalizar su operación, 3) ofrecer una idea breve de cómo se vería y pedir permiso para compartirla, 4) cerrar sin compromiso. Español, sin placeholders, sin emojis, sin enlaces.";
+    "Eres un desarrollador de software de David, Chiriquí. Escribe un mensaje de WhatsApp de APERTURA (máx 80 palabras) para un negocio local que YA TIENE su página web en buen estado. NO ofrezcas la Página web ni la 'muestra de página web' (ese no es su problema). Objetivo: 1) felicitar/notar que ya tienen web, 2) proponer un Sistema a medida (Pedidos y pagos, Reservas, Inscripciones y pagos, Portal de archivos y citas) para digitalizar su operación, 3) ofrecer una idea breve de cómo se vería y pedir permiso para compartirla, 4) cerrar sin compromiso. Español, sin placeholders, sin emojis, sin enlaces.";
   try {
     const res = await chatCompletions(key, {
       model: process.env.DEEPSEEK_MODEL || "deepseek-chat",

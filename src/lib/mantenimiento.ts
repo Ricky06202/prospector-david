@@ -17,7 +17,7 @@ export function mensajeRenovacion(nombre: string, plan: PlanMantenimiento, preci
   return [
     `Hola ${nombre}:`,
     ``,
-    `¿Renovamos el mantenimiento de tu página? Son B/. ${precio.toFixed(2)} (${PLANES[plan].label.toLowerCase()}) por Yappy o Sinpe Móvil.`,
+    `¿Renovamos el Mantenimiento mensual de tu sistema? Son B/. ${precio.toFixed(2)} (${PLANES[plan].label.toLowerCase()}) por Yappy o Sinpe Móvil.`,
     ``,
     `Incluye: contenido actualizado cuando lo pidas, soporte directo, respaldo y optimización. ¡Saludos!`,
   ].join("\n");

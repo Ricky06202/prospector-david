@@ -3,10 +3,10 @@
  * Los precios se ajustan por env (PRECIO_*); por defecto valores sugeridos.
  *
  * FUENTE ÚNICA DE PRECIOS:
- *   - PRECIOS: tarifas base configurables por env (compatibilidad con el motor).
- *   - PAQUETES: la oferta vigente por CONTEXTO de negocio (página web, catálogo,
- *     pedidos y pagos, inscripciones y pagos, reservas, portal de archivos y citas,
- *     mantenimiento y sistema a medida). Mismos precios publicados; no se tocaron.
+ *   - PRECIOS: tarifas base configurables por env (solo modo legado).
+ *   - PAQUETES: la oferta publicada en rsanjur.com/servicios (array "soluciones")
+ *     y en la home (array "paquetes"). Cada paquete trae su nombre, precio_label,
+ *     nota e incluye TAL CUAL se publican. El cotizador y los mensajes salen de aquí.
  *   Se conserva el modo escalonado (Nivel 1 + Nivel 2) por compatibilidad.
  */
 import "dotenv/config";
@@ -58,13 +58,14 @@ export function cotizar(tipo: TipoProyecto, productos = 0, plan = "sin"): Cotiza
   let tipoLabel: string;
   if (tipo === "landing") {
     baseProyecto = PRECIOS.landing;
-    tipoLabel = "Landing de presentación";
+    tipoLabel = "Página web";
   } else if (tipo === "catalogo") {
     baseProyecto = PRECIOS.catalogoBase + productos * PRECIOS.porProducto;
     tipoLabel = "Catálogo en línea + pedidos por WhatsApp";
   } else if (tipo === "ecommerce") {
-    baseProyecto = PRECIOS.ecommerce;
-    tipoLabel = "Tienda en línea con pagos";
+    // Alineado a rsanjur.com: la oferta publicada es "Pedidos y pagos" (Desde $400).
+    baseProyecto = MAPA_PAQUETES.pedidos.precio;
+    tipoLabel = "Pedidos y pagos";
   } else {
     tipoLabel = "Mantenimiento recurrente";
   }
@@ -254,7 +255,7 @@ export function textoCotizacionEscalonada(nombreNegocio: string, plan = "sin"): 
     ``,
     `──────────────────────────`,
     `NIVEL 1 - APERTURA`,
-    `Landing Page optimizada · entregable en 48 h`,
+    `Página web · entregable en 48 h`,
     `B/. ${PRECIOS.landing.toFixed(2)}`,
     ``,
     `  • Dominio propio, alojamiento, diseño a medida y botón directo de WhatsApp`,
@@ -304,7 +305,7 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
   const fila = (nombre: string, monto: string) =>
     `<tr><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">${monto}</td></tr>`;
 
-  const filasN1 = fila("Landing Page optimizada (entregable en 48 h)", `B/. ${PRECIOS.landing.toFixed(2)}`) +
+  const filasN1 = fila("Página web (entregable en 48 h)", `B/. ${PRECIOS.landing.toFixed(2)}`) +
     (n1.planInfo
       ? fila(`Mantenimiento ${n1.planInfo.label.toLowerCase()} — este pago cubre ${n1.planInfo.dias} días`, `B/. ${n1.planInfo.precio.toFixed(2)}`)
       : "");
@@ -366,7 +367,7 @@ export function htmlCotizacionEscalonada(nombreNegocio: string, plan: string, fe
       <div class="nivel n1">
         <h2>Nivel 1 · Apertura</h2>
         <div class="precio">B/. ${c.totalNivel1.toFixed(2)}</div>
-        <div class="sub">Landing Page optimizada · entregable en 48 h</div>
+        <div class="sub">Página web · entregable en 48 h</div>
         <table><tbody>${filasN1}</tbody></table>
       </div>
 
@@ -426,16 +427,25 @@ export interface Paquete {
   desde?: boolean;
   /** Tipo del motor con el que se cotiza (compatibilidad con TipoProyecto). */
   tipo: TipoProyecto | "plataforma";
+  /** Precio EXACTO como se publica en rsanjur.com (ej. "Desde $400"). */
+  precio_label: string;
+  /** Nota EXACTA de precio como se publica (ej. "+ $25/mes", "pago único"). */
+  nota: string;
+  /** "Qué incluye" EXACTO como se publica en rsanjur.com. */
+  incluye: string[];
   destacado?: boolean;
 }
 
 export const PAQUETES: Paquete[] = [
   {
     id: "pagina",
-    nombre: "Página web",
+    nombre: "Página web / catálogo",
     para_quien: "Negocios que necesitan presencia profesional en internet",
     rubros: ["negocio", "comercio", "servicios", "profesional", "local", "emprendimiento"],
     precio: 300,
+    precio_label: "$300 página",
+    nota: "$400 catálogo con productos",
+    incluye: ["Diseño", "Versión móvil", "Que aparezca en Google", "Botón de WhatsApp"],
     tipo: "landing",
     destacado: true,
   },
@@ -445,6 +455,9 @@ export const PAQUETES: Paquete[] = [
     para_quien: "Comercios que quieren mostrar su inventario y recibir pedidos por WhatsApp",
     rubros: ["tienda", "boutique", "ferretería", "supermercado", "minimarket", "farmacia", "repuestos", "almacén", "ropa"],
     precio: 400,
+    precio_label: "$400 catálogo",
+    nota: "pago único",
+    incluye: ["Diseño", "Versión móvil", "Que aparezca en Google", "Botón de WhatsApp"],
     tipo: "catalogo",
     destacado: true,
   },
@@ -455,6 +468,9 @@ export const PAQUETES: Paquete[] = [
     rubros: ["restaurante", "panadería", "cafetería", "food truck", "comida", "pizzería", "sushi", "cocina", "heladería"],
     precio: 400,
     precio_mes: 25,
+    precio_label: "Desde $400",
+    nota: "+ $25/mes",
+    incluye: ["Menú digital", "Carrito", "Pago con Yappy", "Panel de pedidos", "Correo de confirmación", "Seguimiento"],
     tipo: "ecommerce",
     destacado: true,
   },
@@ -465,6 +481,9 @@ export const PAQUETES: Paquete[] = [
     rubros: ["academia", "gimnasio", "club", "escuela", "colegio", "deporte", "taller", "educación", "danza"],
     precio: 500,
     precio_mes: 25,
+    precio_label: "Desde $500",
+    nota: "+ $25/mes",
+    incluye: ["Formulario", "Control de cupos", "Pago en línea", "Listas y reportes"],
     tipo: "ecommerce",
   },
   {
@@ -474,6 +493,9 @@ export const PAQUETES: Paquete[] = [
     rubros: ["cabaña", "hostal", "hotel", "tour", "posada", "turismo", "finca", "alojamiento"],
     precio: 500,
     precio_mes: 25,
+    precio_label: "Desde $500",
+    nota: "+ $25/mes",
+    incluye: ["Calendario", "Disponibilidad", "Pago", "Reportes para el dueño"],
     tipo: "ecommerce",
   },
   {
@@ -482,6 +504,9 @@ export const PAQUETES: Paquete[] = [
     para_quien: "Clínicas, despachos e inmobiliarias que gestionan citas y documentos",
     rubros: ["clínica", "consultorio", "despacho", "abogado", "contador", "inmobiliaria", "dental", "médico", "seguros"],
     precio: 400,
+    precio_label: "Desde $400",
+    nota: "pago único",
+    incluye: ["Subida y descarga de documentos con clave", "Avisos"],
     tipo: "catalogo",
   },
   {
@@ -491,6 +516,9 @@ export const PAQUETES: Paquete[] = [
     rubros: [],
     precio: 25,
     precio_max: 40,
+    precio_label: "$25 a $40",
+    nota: "por mes",
+    incluye: ["Cambios", "Respaldos", "Monitoreo", "Soporte por WhatsApp"],
     tipo: "mantenimiento",
   },
   {
@@ -500,6 +528,9 @@ export const PAQUETES: Paquete[] = [
     rubros: [],
     precio: 1200,
     desde: true,
+    precio_label: "Desde $1,200",
+    nota: "pago único",
+    incluye: ["Panel de administración", "Pagos en línea", "Reportes", "Soporte por WhatsApp"],
     tipo: "plataforma",
     destacado: true,
   },
@@ -519,13 +550,9 @@ export function paquetePorRubro(rubro: string): Paquete | null {
   return null;
 }
 
-/** Etiqueta compacta del precio de un paquete (para UI/copy). */
+/** Etiqueta compacta del precio PUBLICADO de un paquete (para UI/copy). */
 export function precioPaqueteLabel(p: Paquete): string {
-  const base = `B/. ${p.precio.toFixed(2)}`;
-  if (p.precio_max) return `${base} a B/. ${p.precio_max.toFixed(2)}/mes`;
-  if (p.precio_mes) return `${base} + B/. ${p.precio_mes.toFixed(2)}/mes`;
-  if (p.desde) return `desde ${base}`;
-  return base;
+  return p.nota ? `${p.precio_label} · ${p.nota}` : p.precio_label;
 }
 
 export interface PaqueteCotizacion {
@@ -568,17 +595,11 @@ export function textoCotizacionPaquete(nombreNegocio: string, paqueteId: string,
     ``,
     `Paquete: ${p.nombre}`,
     `Pensado para: ${p.para_quien}`,
+    `Precio: ${p.precio_label}${p.nota ? ` (${p.nota})` : ""}`,
     ``,
-    p.desde
-      ? `Valor del paquete: desde B/. ${p.precio.toFixed(2)} (según alcance)`
-      : `Valor del paquete: B/. ${p.precio.toFixed(2)}`,
+    `Incluye:`,
   ];
-  if (p.precio_mes) {
-    lineas.push(`Mensualidad del paquete: B/. ${p.precio_mes.toFixed(2)}/mes (incluida)`);
-  }
-  if (p.precio_max) {
-    lineas.push(`Rango según alcance: B/. ${p.precio.toFixed(2)} a B/. ${p.precio_max.toFixed(2)}/mes`);
-  }
+  for (const it of p.incluye) lineas.push(`  • ${it}`);
   if (c.planInfo) {
     lineas.push(`Mantenimiento ${c.planInfo.label.toLowerCase()} — este pago cubre ${c.planInfo.dias} días: B/. ${c.planInfo.precio.toFixed(2)}`);
   }
@@ -590,9 +611,8 @@ export function textoCotizacionPaquete(nombreNegocio: string, paqueteId: string,
   if (p.precio_mes) {
     lineas.push(`Se renueva cada mes: B/. ${p.precio_mes.toFixed(2)}/mes.`);
   }
-  lineas.push(``);
-  lineas.push(`Incluye: dominio propio, alojamiento, diseño a medida y botón de WhatsApp.`);
   if (!c.planInfo && p.id !== "mantenimiento") {
+    lineas.push(``);
     lineas.push(`Mantenimiento opcional (contenido actualizado, soporte, respaldo y optimización):`);
     lineas.push(`  › Mensual B/. ${PLANES.mensual.precio.toFixed(2)} · Trimestral B/. ${PLANES.trimestral.precio.toFixed(2)} · Semestral B/. ${PLANES.semestral.precio.toFixed(2)}`);
   }
@@ -613,9 +633,14 @@ export function htmlCotizacionPaquete(nombreNegocio: string, paqueteId: string, 
     `<tr><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;color:#334155">${nombre}</td><td style="padding:11px 16px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">${monto}</td></tr>`;
 
   const filas =
-    fila(`Paquete ${p.nombre}`, precioTxt) +
+    fila(`Paquete ${p.nombre}`, p.precio_label) +
     (p.precio_mes ? fila(`Mensualidad del paquete`, `B/. ${p.precio_mes.toFixed(2)}/mes`) : "") +
+    (p.nota ? fila(`Nota`, p.nota) : "") +
     (c?.planInfo ? fila(`Mantenimiento ${c.planInfo.label.toLowerCase()} — cubre ${c.planInfo.dias} días`, `B/. ${c.planInfo.precio.toFixed(2)}`) : "");
+
+  const incluyeBloque = p.incluye.length
+    ? `<div class="nota"><b>Incluye:</b><ul style="margin:8px 0 0;padding-left:18px">${p.incluye.map((it) => `<li>${it}</li>`).join("")}</ul></div>`
+    : "";
 
   const mantBloque = c?.planInfo
     ? `<div style="margin-top:16px;padding:14px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;font-size:12px;color:#78350f;line-height:1.6">
@@ -674,8 +699,9 @@ export function htmlCotizacionPaquete(nombreNegocio: string, paqueteId: string, 
       <table><thead><tr><th>Concepto</th><th class="m">Monto</th></tr></thead><tbody>
         ${filas}
       </tbody></table>
+      ${incluyeBloque}
       ${mantBloque}
-      <div class="nota"><b>Incluye:</b> dominio propio, alojamiento, diseño a medida y botón directo de WhatsApp. Plazos y detalles se confirman en una llamada breve.</div>
+      <div class="nota">Plazos y detalles se confirman en una llamada breve.</div>
       <div class="foot"><span>Cotización sin compromiso · Válida por 15 días</span><span>Ricardo Sanjur · WhatsApp 6510-4147</span></div>
     </div>
   </body></html>`;
