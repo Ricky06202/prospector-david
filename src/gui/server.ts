@@ -24,7 +24,7 @@ import {
   ROOT,
 } from "../lib/prospectos-io.ts";
 import { generarEmail, generarSeguimiento, generarRespuesta, interpretarRespuesta, generarRetomaConDeepSeek, generarMuestraConDeepSeek, generarUpsellConDeepSeek } from "../envio/deepseek.ts";
-import { PRECIOS, MATRIZ, PAQUETES, MAPA_PAQUETES, paquetePorRubro, cotizar, textoCotizacion, htmlCotizacion, cotizarEscalonada, textoCotizacionEscalonada, htmlCotizacionEscalonada, cotizarPaquete, textoCotizacionPaquete, htmlCotizacionPaquete } from "../lib/precios.ts";
+import { PRECIOS, PAQUETES, MAPA_PAQUETES, paquetePorRubro, cotizar, textoCotizacion, htmlCotizacion, cotizarPaquete, textoCotizacionPaquete, htmlCotizacionPaquete } from "../lib/precios.ts";
 import type { TipoProyecto } from "../lib/precios.ts";
 import { configAntiBan, planDeRitmo, formatoMs, diasDesde, contieneEnlaces, mensajeRetoma, mensajeMuestra } from "../envio/anti-ban.ts";
 import { waLink } from "../envio/deepseek.ts";
@@ -220,14 +220,13 @@ app.get("/api/copys", async (c) => {
 });
 
 // Cotizador: precios configurables y generación de cotizaciones con desglose.
-app.get("/api/cotizador/precios", (c) => c.json({ ok: true, precios: PRECIOS, matriz: MATRIZ, planes: PLANES, paquetes: PAQUETES }));
+app.get("/api/cotizador/precios", (c) => c.json({ ok: true, precios: PRECIOS, planes: PLANES, paquetes: PAQUETES }));
 
 app.post("/api/cotizador", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const id = String(body.id || "");
-  const tipo = String(body.tipo || "escalonada");
+  const tipo = String(body.tipo || "");
   const paquete = String(body.paquete || "");
-  const productos = Math.max(0, Number(body.productos) || 0);
   const plan = String(body.plan || "sin");
   const lista = await cargarProspectos();
   const p = lista.find((x) => x.id === id);
@@ -238,18 +237,12 @@ app.post("/api/cotizador", async (c) => {
     const cot = cotizarPaquete(paquete, plan);
     if (!cot) return c.json({ ok: false, error: "paquete desconocido: " + paquete });
     const texto = textoCotizacionPaquete(nombre, paquete, plan);
-    return c.json({ ok: true, paquete: true, escalonada: false, cotizacion: cot, texto });
+    return c.json({ ok: true, paquete: true, cotizacion: cot, texto });
   }
 
-  // Modo ESCALONADA (compatibilidad: Nivel 1 landing + Nivel 2 plataforma bajo la matriz).
-  if (tipo === "escalonada") {
-    const cot = cotizarEscalonada(0, plan);
-    return c.json({ ok: true, escalonada: true, cotizacion: cot, texto: textoCotizacionEscalonada(nombre, plan) });
-  }
-
-  // Modo legado (single nivel): landing/catalogo/ecommerce/mantenimiento.
-  const cot = cotizar(tipo as TipoProyecto, productos, plan);
-  return c.json({ ok: true, escalonada: false, cotizacion: cot, texto: textoCotizacion(nombre, tipo as TipoProyecto, productos, plan) });
+  // Compatibilidad (tipo legado): landing/catalogo/ecommerce/mantenimiento.
+  const cot = cotizar(tipo as TipoProyecto, plan);
+  return c.json({ ok: true, cotizacion: cot, texto: textoCotizacion(nombre, tipo as TipoProyecto, plan) });
 });
 
 // Anti-ban: config actual + plan de ritmo para N envíos (previsualización del humano).
@@ -271,9 +264,8 @@ app.get("/api/anti-ban", (c) => {
 app.post("/api/cotizador/pdf", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const id = String(body.id || "");
-  const tipo = String(body.tipo || "escalonada");
+  const tipo = String(body.tipo || "");
   const paquete = String(body.paquete || "");
-  const productos = Math.max(0, Number(body.productos) || 0);
   const plan = String(body.plan || "sin");
   const lista = await cargarProspectos();
   const p = lista.find((x) => x.id === id);
@@ -282,9 +274,7 @@ app.post("/api/cotizador/pdf", async (c) => {
 
   const html = paquete
     ? htmlCotizacionPaquete(nombre, paquete, plan, fecha)
-    : tipo === "escalonada"
-      ? htmlCotizacionEscalonada(nombre, plan, fecha)
-      : htmlCotizacion(nombre, tipo as TipoProyecto, productos, plan, fecha);
+    : htmlCotizacion(nombre, tipo as TipoProyecto, plan, fecha);
 
   const browser = await launch({
     executablePath: process.env.CHROMIUM_PATH || "/nix/store/rxf83sv2x0ja1hi6vdli6ijll5v15x9j-chromium-151.0.7922.173/bin/chromium",

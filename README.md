@@ -7,7 +7,7 @@ Pipeline end-to-end de prospección local para negocios de **David, Chiriquí**:
 > Su trabajo es que el cliente diga "sí" al paquete que le sirve según su negocio
 > (**Página web** $300, **Catálogo** $400, **Pedidos y pagos** $400+$25/mes, **Inscripciones**
 > $500+$25/mes, **Reservas** $500+$25/mes, **Portal de archivos y citas** $400 o
-> **Sistema a medida** desde $1,200), respaldado por la empresa matriz.
+> **Sistema a medida** desde $1,200).
 
 ### Las 4 mejoras estratégicas
 1. **Lead Scoring**: el motor de Places API puntúa y prioriza negocios tradicionales
@@ -24,8 +24,7 @@ Pipeline end-to-end de prospección local para negocios de **David, Chiriquí**:
 3. **Cotizador por paquete** (fuente única en `src/lib/precios.ts`): ofrece el paquete
    que corresponde al contexto del negocio (página web, catálogo, pedidos, inscripciones,
    reservas, portal, mantenimiento o sistema a medida), con mantenimiento opcional desde
-   los planes. El modo escalonado (Nivel 1 + 2, dashboard desde $1,200 bajo **Topografía
-   Especializada S.A.**) se conserva por compatibilidad. Texto y PDF por paquete.
+   los planes (mantenimiento mensual publicado en rsanjur.com). Texto y PDF por paquete.
 4. **Pipeline de prototipado optimizado**: una sola instancia de Chromium para todo el
    lote, espera por fuentes (no sleeps fijos), capturas **JPEG livianas por defecto**
    (las 6 imágenes ≈ 1MB, cargan al instante en WhatsApp), salta lo ya capturado
@@ -130,7 +129,7 @@ el estado `seguimiento` de cada prospecto (el reloj parte de `ultimo_contacto`).
    - **Retoma (no respondió)** → mensaje adaptado a los días + imágenes.
    - **Mensaje 2 · Muestra (respondió)** → cuando el cliente te responde, usa esta opción
      para enviarle la muestra con las 6 imágenes.
-4. El que responde → lo pasas a **Interesado** → cierras con el cotizador escalonado.
+4. El que responde → lo pasas a **Interesado** → cierras con el cotizador por paquete.
 
 ## 5. Reglas del scraper (camchi y Places)
 
@@ -167,9 +166,8 @@ y gimnasios, **Reservas** $500+$25/mes para cabañas y tours, o **Portal de arch
 $400 para clínicas, despachos e inmobiliarias) → ahí sí construyes el proyecto con su color,
 fotos reales y mapa con pin.
 
-Para negocios con operación compleja, ofrece el **Sistema a medida** (desde $1,200),
-cotizado bajo la garantía de la empresa matriz (Topografía Especializada S.A.). El
-mantenimiento ($25 a $40/mes) se elige aparte, desde los planes.
+Para negocios con operación compleja, ofrece el **Sistema a medida** (desde $1,200,
+pago único). El mantenimiento ($25 a $40/mes) se elige aparte.
 
 ## 8. Despliegue en GitHub
 

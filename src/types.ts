@@ -38,7 +38,7 @@ export interface Prospecto {
   tagline?: string;
   /** Plan de mantenimiento recurrente (si el cliente lo tiene contratado). */
   mantenimiento?: {
-    plan: "mensual" | "trimestral" | "semestral";
+    plan: "mensual";
     vence: string; // ISO
   };
   /** Estado de prospección: nuevo | en_cola | enviado | seguimiento | no_interesado | reagendar | interesado | cliente. */

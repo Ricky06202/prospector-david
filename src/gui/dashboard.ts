@@ -253,13 +253,11 @@ tbody tr:hover{background:#f8fafc}
   <section class="screen" id="scr-mantenimiento">
     <div class="card">
       <h2>♻ Mantenimiento recurrente</h2>
-      <p class="sub">Registra a tus clientes en el plan mensual/trimestral/semestral y controla las renovaciones con un clic. Incluye: contenido actualizado, soporte, respaldo y optimización.</p>
+      <p class="sub">Registra a tus clientes en el plan mensual y controla las renovaciones con un clic. Incluye: contenido actualizado, soporte, respaldo y optimización.</p>
       <div class="row">
         <select id="mant-select" style="min-width:260px"></select>
         <select id="mant-plan">
           <option value="mensual">Mensual · B/. 25</option>
-          <option value="trimestral">Trimestral · B/. 60</option>
-          <option value="semestral">Semestral · B/. 100</option>
         </select>
         <button class="prim" data-accion="mant-registrar">Registrar cliente</button>
       </div>
@@ -325,13 +323,11 @@ tbody tr:hover{background:#f8fafc}
           <select id="cot-mant" style="min-width:170px">
             <option value="sin" selected>Sin mantenimiento</option>
             <option value="mensual">+ Mensual B/. 25</option>
-            <option value="trimestral">+ Trimestral B/. 60</option>
-            <option value="semestral">+ Semestral B/. 100</option>
           </select>
           <button data-accion="cot-generar">🧾 Generar cotización</button>
         </div>
         <p class="muted" style="margin:8px 0 0">Precios publicados en rsanjur.com/servicios. El paquete ya incluye su mensualidad cuando aplica (pedidos, inscripciones y reservas). El TOTAL inicial suma el valor del paquete + el plan de mantenimiento elegido.</p>
-        <textarea id="cot-out" rows="11" placeholder="Cotización escalonada…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
+        <textarea id="cot-out" rows="11" placeholder="Cotización por paquete…" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical"></textarea>
         <div class="row" style="margin-top:10px">
           <button data-accion="cot-copiar">📋 Copiar</button>
           <button data-accion="cot-pdf">📄 Descargar PDF</button>
