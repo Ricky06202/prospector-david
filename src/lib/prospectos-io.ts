@@ -69,7 +69,7 @@ export async function prepararLote(n: number): Promise<{ elegidos: Prospecto[]; 
   const lista = await cargarProspectos();
   const enCola = lista.filter((p) => p.estado === "en_cola" && p.tipo_lead !== "upsell");
   // Disponibles: nuevos + reagendados (los pospuestos vuelven a salir en lotes futuros).
-  // El track UPSELL queda FUERA del lote de $300.
+  // El track UPSELL queda FUERA del flujo de landing de $50.
   const pendientes = lista.filter(
     (p) => (!p.estado || p.estado === "nuevo" || p.estado === "reagendar") && p.tipo_lead !== "upsell"
   );
@@ -93,7 +93,7 @@ export async function prepararLote(n: number): Promise<{ elegidos: Prospecto[]; 
 }
 
 /** Prospectos activos para procesar: el lote actual si existe, si no NICHO, si no todos.
- *  Por defecto (lead="landing") el track de UPSELL queda fuera del pipeline de $300. */
+ *  Por defecto (lead="landing") el track de UPSELL queda fuera del flujo de landing de $50. */
 export async function filtrarActivos(lista: Prospecto[], nicho?: string, lead: "landing" | "upsell" | "todos" = "landing"): Promise<Prospecto[]> {
   let base = lista;
   if (nicho) {

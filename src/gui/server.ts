@@ -219,8 +219,9 @@ app.get("/api/copys", async (c) => {
   }
 });
 
-// Cotizador: precios configurables y generación de cotizaciones con desglose.
-app.get("/api/cotizador/precios", (c) => c.json({ ok: true, precios: PRECIOS, planes: PLANES, paquetes: PAQUETES }));
+// Nuevas cotizaciones: catálogo de paquetes de pago único. Las renovaciones
+// existentes de mantenimiento se gestionan por separado en /api/mantenimiento.
+app.get("/api/cotizador/precios", (c) => c.json({ ok: true, paquetes: PAQUETES }));
 
 app.post("/api/cotizador", async (c) => {
   const body = await c.req.json().catch(() => ({}));
@@ -271,6 +272,10 @@ app.post("/api/cotizador/pdf", async (c) => {
   const p = lista.find((x) => x.id === id);
   const nombre = p ? p.nombre_negocio : "Negocio";
   const fecha = new Date().toLocaleDateString("es-PA", { day: "2-digit", month: "long", year: "numeric" });
+
+  if (paquete && !cotizarPaquete(paquete, plan)) {
+    return c.json({ ok: false, error: "paquete desconocido: " + paquete }, 400);
+  }
 
   const html = paquete
     ? htmlCotizacionPaquete(nombre, paquete, plan, fecha)

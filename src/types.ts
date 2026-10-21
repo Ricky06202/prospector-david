@@ -43,7 +43,7 @@ export interface Prospecto {
   };
   /** Estado de prospección: nuevo | en_cola | enviado | seguimiento | no_interesado | reagendar | interesado | cliente. */
   estado?: string;
-  /** A qué embudo pertenece: "landing" ($300, sin web) | "upsell" (dashboard $1,200, ya tiene web buena). */
+  /** A qué embudo pertenece: "landing" ($50, sin web) | "upsell" (microsistema desde $200 o proyecto por alcance, ya tiene web buena). */
   tipo_lead?: "landing" | "upsell";
   /** Fecha de envío (ISO) cuando estado === "enviado". */
   enviado_en?: string;

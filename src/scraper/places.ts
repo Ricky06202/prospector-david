@@ -300,8 +300,8 @@ if (ANALIZAR_WEB) {
 }
 
 // ---- LEAD SCORING + ranking + TRACK (landing / upsell) ----
-const puntuados: Prospecto[] = [];   // track LANDING ($300, sin web / web deficiente)
-const upsells: Prospecto[] = [];     // track UPSELL (dashboard $1,200, ya tiene web buena)
+const puntuados: Prospecto[] = [];   // track LANDING ($50, sin web / web deficiente)
+const upsells: Prospecto[] = [];     // track UPSELL (microsistema desde $200 o proyecto por alcance)
 for (const p of extraidos) {
   // Web propia confirmada en buen estado → candidato a UPSEL (tiene presencia digital).
   if (p.tiene_web && p.web_deficiente === false) {

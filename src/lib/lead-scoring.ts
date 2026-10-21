@@ -33,7 +33,7 @@ export interface DatosReputacion {
   giro_tradicional: boolean;
 }
 
-/** GiroS objetivo: negocios tradicionales/operativos (volumen de $300 + upsell B2B). */
+/** Giros objetivo: negocios tradicionales/operativos (paquete de entrada + oportunidad B2B). */
 export const GIROS_TRADICIONALES = [
   "agro", "agricol", "agropecu", "agroind", "ganader", "riego", "semilla", "insumos",
   "logistic", "transporte", "encomienda", "aduanas", "carga", "flete", "mudanza",

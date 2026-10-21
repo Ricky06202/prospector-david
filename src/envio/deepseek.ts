@@ -263,14 +263,17 @@ function extraerJson(texto: string): Record<string, unknown> | null {
 /** Respuesta de respaldo cuando la IA no está disponible o no devuelve JSON válido. */
 function respuestaPlantilla(p: Prospecto): string {
   const pk = paquetePorRubro(p.tipo);
-  const recomendado = pk
-    ? `Para su rubro lo que mejor encaja es el paquete ${pk.nombre} — B/. ${pk.precio.toFixed(2)}${pk.precio_mes ? ` + B/. ${pk.precio_mes.toFixed(2)}/mes` : ""}${pk.desde ? " (desde)" : ""}.`
-    : "El paquete base es Página web (B/. 300) e incluye dominio propio, diseño a medida y botón de WhatsApp.";
+  const recomendado = p.tiene_web
+    ? "Como ya tiene página web, cuénteme qué función quiere agregar; si encaja en un paquete básico, tiene precio de pago único publicado, y lo que salga de alcance se cotiza aparte."
+    : pk
+      ? `Para su rubro lo que mejor encaja es ${pk.nombre}: ${pk.precio_label} (${pk.nota}). ${pk.descripcion}`
+      : "El paquete base es Landing / página web: $50, pago único; incluye una página de hasta 5 secciones, diseño adaptable a celular y botón de WhatsApp.";
   return [
     "¡Gracias por escribirnos! Claro, con gusto los ayudo.",
     "",
-    `Lo que vieron es la muestra: el sitio completo incluye dominio propio, diseño a medida y botón de WhatsApp directo. ${recomendado}`,
-    "Si necesitan catálogo, pedidos, inscripciones, reservas o citas, se cotiza según el alcance.",
+    `La muestra es una referencia visual; el paquete incluye el alcance descrito. ${recomendado}`,
+    "El hosting está incluido, sin mensualidad. El dominio sigue a nombre del cliente; si no tiene uno, se puede usar un subdominio de rsanjur.com.",
+    "Las funciones fuera del alcance básico se cotizan aparte.",
     "",
     "¿Les paso los detalles o preferís una llamada corta? Sin compromiso.",
   ].join("\n");
@@ -283,12 +286,12 @@ function respuestaPlantilla(p: Prospecto): string {
 export async function interpretarRespuesta(p: Prospecto, mensajeCliente: string): Promise<InterpretacionRespuesta> {
   const yaTieneSitio = p.tiene_web === true;
   const pk = paquetePorRubro(p.tipo);
-  const pistaPaquete = pk
-    ? `El paquete que mejor encaja con su rubro "${p.tipo}" es ${pk.nombre} (B/. ${pk.precio.toFixed(2)}${pk.precio_mes ? ` + B/. ${pk.precio_mes.toFixed(2)}/mes` : ""}${pk.desde ? ", desde" : ""}). Ofrécelo por su NOMBRE, nunca como "nivel".`
-    : 'Ofrece el paquete que corresponda a lo que pide el negocio por su NOMBRE (catálogo, pedidos, inscripciones, reservas, portal o sistema a medida); no uses la palabra "nivel".';
+  const pistaPaquete = pk && !(yaTieneSitio && pk.id === "pagina")
+    ? `El paquete que mejor encaja con su rubro "${p.tipo}" es ${pk.nombre}: ${pk.precio_label} (${pk.nota}). Alcance: ${pk.descripcion} Incluye: ${pk.incluye.join(", ")}. Es de pago único; no agregues mensualidades. Ofrécelo por su NOMBRE, nunca como "nivel".`
+    : 'Ofrece el paquete que corresponda a lo que pide el negocio por su NOMBRE (landing, catálogo básico, pedidos y pagos básicos, inscripciones básicas, reservas básicas, portal público/privado o microsistema); todos son de pago único. Lo que exceda su alcance se cotiza aparte; no agregues mensualidades ni uses la palabra "nivel".';
   const reglasSitio = yaTieneSitio
-    ? "IMPORTANTE: este negocio YA tiene su página web (es cliente actual). NO ofrezcas la página web básica ni la muestra gratis: enfócate SOLO en el upgrade que pide (catálogo, pedidos, inscripciones, reservas, portal de archivos y citas, sistema a medida) y preséntalo como proyecto aparte que se cotiza según el alcance."
-    : "Este negocio es un prospecto nuevo que ya recibió una MUESTRA GRATIS de su futura web: si pide más que una presentación, recordá que el paquete base es Página web (B/. 300) y que catálogo/pedidos/inscripciones/reservas/portal se cotizan aparte.";
+    ? "IMPORTANTE: este negocio YA tiene su página web (es cliente actual). NO ofrezcas la landing básica ni la muestra gratis: enfócate en la función que pide (catálogo, pedidos, inscripciones, reservas, portal público/privado o microsistema), usa el precio de pago único publicado si encaja y cotiza aparte solo lo que exceda ese alcance."
+    : "Este negocio es un prospecto nuevo que ya recibió una MUESTRA GRATIS de su futura web. La landing básica cuesta $50, pago único, e incluye una página de hasta 5 secciones, diseño adaptable a celular y botón de WhatsApp. Otros paquetes básicos tienen precios de pago único publicados; no los describas como trabajos sin precio ni agregues mensualidades.";
   const sist =
     "Eres un asesor de ventas y TRADUCTOR de mensajes para un desarrollador web local de David, Chiriquí.\n" +
     'El negocio se llama EXACTAMENTE "' + p.nombre_negocio + '" y su rubro es "' + p.tipo + '" — jamás lo llames de otra forma ni cambies su rubro.\n' +

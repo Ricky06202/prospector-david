@@ -5,9 +5,10 @@ Pipeline end-to-end de prospección local para negocios de **David, Chiriquí**:
 
 > **Filosofía:** la landing automática es un *gancho de venta*, no el producto final.
 > Su trabajo es que el cliente diga "sí" al paquete que le sirve según su negocio
-> (**Página web** $300, **Catálogo** $400, **Pedidos y pagos** $400+$25/mes, **Inscripciones**
-> $500+$25/mes, **Reservas** $500+$25/mes, **Portal de archivos y citas** $400 o
-> **Sistema a medida** desde $1,200).
+> (**Landing / página web** $50, **Catálogo básico** $75, **Pedidos y pagos básicos** $100,
+> **Inscripciones básicas** $100, **Reservas básicas** $100, **Portal público de archivos** $75,
+> **Portal privado de archivos** desde $200 o **Microsistema a medida** desde $200).
+> Son precios de lanzamiento, de pago único y con alcance limitado; proyectos grandes se cotizan aparte.
 
 ### Las 4 mejoras estratégicas
 1. **Lead Scoring**: el motor de Places API puntúa y prioriza negocios tradicionales
@@ -160,14 +161,14 @@ el estado `seguimiento` de cada prospecto (el reloj parte de `ultimo_contacto`).
 El flujo que convierte: scrapea (Places con scoring) → revisa el reporte → envía manualmente
 siguiendo el ritmo anti-ban (mensaje 1 = apertura sin enlaces, mensaje 2 = muestra tras la
 respuesta) → muestra la maqueta → cierra el paquete que le sirve a ese negocio (**Página
-web** $300 para presencia, **Catálogo** $400 para inventario, **Pedidos y pagos**
-$400+$25/mes para restaurantes y panaderías, **Inscripciones** $500+$25/mes para academias
-y gimnasios, **Reservas** $500+$25/mes para cabañas y tours, o **Portal de archivos y citas**
-$400 para clínicas, despachos e inmobiliarias) → ahí sí construyes el proyecto con su color,
-fotos reales y mapa con pin.
+web** $50, **Catálogo** $75, **Pedidos y pagos**, **Inscripciones** o **Reservas** básicos $100,
+**Portal público** $75, **Portal privado** desde $200 o **Microsistema** desde $200) → ahí sí
+construyes el proyecto con su color, fotos reales y mapa con pin. Los ejemplos avanzados no
+forman parte del paquete básico y se cotizan por alcance.
 
-Para negocios con operación compleja, ofrece el **Sistema a medida** (desde $1,200,
-pago único). El mantenimiento ($25 a $40/mes) se elige aparte.
+Las cotizaciones nuevas son de **pago único**. Las fechas y condiciones de entrega se confirman
+con cada cliente antes de comenzar. Las renovaciones manuales de mantenimiento de clientes
+existentes se conservan, pero ya no se ofrecen en el cotizador nuevo.
 
 ## 8. Despliegue en GitHub
 
